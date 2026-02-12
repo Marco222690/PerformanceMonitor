@@ -30,6 +30,7 @@ namespace PerformanceMonitorLite.Services;
 /// </summary>
 public class CollectorHealthEntry
 {
+    public int ServerId { get; set; }
     public string CollectorName { get; set; } = "";
     public DateTime? LastSuccessTime { get; set; }
     public DateTime? LastErrorTime { get; set; }
@@ -82,9 +83,9 @@ public partial class RemoteCollectorService
     private long _lastDuckDbMs;
 
     /// <summary>
-    /// Tracks health state per collector (keyed by collector name).
+    /// Tracks health state per collector per server.
     /// </summary>
-    private readonly Dictionary<string, CollectorHealthEntry> _collectorHealth = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<(int ServerId, string CollectorName), CollectorHealthEntry> _collectorHealth = new();
     private readonly object _healthLock = new();
 
     /// <summary>
@@ -113,20 +114,24 @@ public partial class RemoteCollectorService
     public Task SeedDeltaCacheAsync() => _deltaCalculator.SeedFromDatabaseAsync(_duckDb);
 
     /// <summary>
-    /// Gets a summary of collector health across all tracked collectors.
+    /// Gets a summary of collector health. When serverId is provided, filters to that server only.
     /// </summary>
-    public CollectorHealthSummary GetHealthSummary()
+    public CollectorHealthSummary GetHealthSummary(int? serverId = null)
     {
         lock (_healthLock)
         {
             var summary = new CollectorHealthSummary
             {
-                TotalCollectors = _collectorHealth.Count,
                 LoggingFailures = _logInsertFailures
             };
 
             foreach (var entry in _collectorHealth.Values)
             {
+                if (serverId.HasValue && entry.ServerId != serverId.Value)
+                    continue;
+
+                summary.TotalCollectors++;
+
                 if (entry.ConsecutiveErrors > 0)
                 {
                     summary.ErroringCollectors++;
@@ -141,14 +146,15 @@ public partial class RemoteCollectorService
     /// <summary>
     /// Records a collector execution result for health tracking.
     /// </summary>
-    private void RecordCollectorResult(string collectorName, bool success, string? errorMessage = null)
+    private void RecordCollectorResult(int serverId, string collectorName, bool success, string? errorMessage = null)
     {
         lock (_healthLock)
         {
-            if (!_collectorHealth.TryGetValue(collectorName, out var entry))
+            var key = (serverId, collectorName);
+            if (!_collectorHealth.TryGetValue(key, out var entry))
             {
-                entry = new CollectorHealthEntry { CollectorName = collectorName };
-                _collectorHealth[collectorName] = entry;
+                entry = new CollectorHealthEntry { ServerId = serverId, CollectorName = collectorName };
+                _collectorHealth[key] = entry;
             }
 
             if (success)
@@ -330,7 +336,7 @@ public partial class RemoteCollectorService
         }
 
         // Track collector health
-        RecordCollectorResult(collectorName, status == "SUCCESS", errorMessage);
+        RecordCollectorResult(GetServerId(server), collectorName, status == "SUCCESS", errorMessage);
 
         // Log the collection attempt
         await LogCollectionAsync(GetServerId(server), collectorName, startTime, status, errorMessage, rowsCollected, _lastSqlMs, _lastDuckDbMs);

@@ -30,6 +30,7 @@ public partial class ServerTab : UserControl
     private readonly ServerConnection _server;
     private readonly LocalDataService _dataService;
     private readonly int _serverId;
+    public int ServerId => _serverId;
     private readonly CredentialService _credentialService;
     private readonly DispatcherTimer _refreshTimer;
     private readonly Dictionary<ScottPlot.WPF.WpfPlot, ScottPlot.Panels.LegendPanel?> _legendPanels = new();

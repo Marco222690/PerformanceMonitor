@@ -219,6 +219,8 @@ public partial class MainWindow : Window
         {
             ServerTimeHelper.UtcOffsetMinutes = serverTab.UtcOffsetMinutes;
         }
+
+        UpdateCollectorHealth();
     }
 
     private void RefreshServerList()
@@ -290,7 +292,13 @@ public partial class MainWindow : Window
             return;
         }
 
-        var health = _collectorService.GetHealthSummary();
+        int? selectedServerId = null;
+        if (ServerTabControl.SelectedItem is TabItem { Content: ServerTab serverTab })
+        {
+            selectedServerId = serverTab.ServerId;
+        }
+
+        var health = _collectorService.GetHealthSummary(selectedServerId);
 
         if (health.TotalCollectors == 0)
         {

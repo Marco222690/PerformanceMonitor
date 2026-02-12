@@ -340,6 +340,8 @@ public partial class MainWindow : Window
                     if (summary != null)
                     {
                         summary.ServerName = server.ServerName;
+                        var connStatus = _serverManager.GetConnectionStatus(server.Id);
+                        summary.IsOnline = connStatus.IsOnline;
                         summaries.Add(summary);
                     }
                 }

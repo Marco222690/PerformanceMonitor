@@ -574,14 +574,12 @@ public class ServerManager
     {
         var message = ex.Message?.ToLowerInvariant() ?? string.Empty;
         
-        // Common patterns when user cancels Azure AD authentication
+        // Only treat explicit user cancellation messages as cancellation
+        // Do NOT treat authentication errors (wrong password, account selection, etc.) as cancellation
         return message.Contains("user canceled") ||
                message.Contains("user cancelled") ||
                message.Contains("authentication was cancelled") ||
-               message.Contains("authentication was canceled") ||
-               message.Contains("user intervention is required") ||
-               message.Contains("aadsts50058") || // Need to select account
-               message.Contains("aadsts50126"); // Invalid credentials or cancelled
+               message.Contains("authentication was canceled");
     }
 
     /// <summary>

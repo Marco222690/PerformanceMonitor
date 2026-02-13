@@ -465,7 +465,7 @@ public class ServerManager
             catch { /* best effort */ }
 
             // MIGRATION: Backward compatibility for existing servers.json files
-            // Old configs only had UseWindowsAuth, new code uses AuthenticationType
+            // Migration from old UseWindowsAuth property happens automatically during deserialization
             MigrateServerAuthentication(_servers);
 
             // Initialize status tracking for all loaded servers
@@ -531,30 +531,17 @@ public class ServerManager
 
     /// <summary>
     /// Migrates server authentication configuration for backward compatibility.
-    /// Old configs only had UseWindowsAuth, new code uses AuthenticationType.
-    /// If AuthenticationType is default Windows but UseWindowsAuth is false, set to SqlServer.
+    /// Note: Migration from old UseWindowsAuth property happens automatically via
+    /// the UseWindowsAuth setter during JSON deserialization.
     /// </summary>
     private void MigrateServerAuthentication(List<ServerConnection> servers)
     {
+        // Migration is now automatic via UseWindowsAuth property setter
+        // Just log the loaded servers for debugging
         foreach (var server in servers)
         {
-            // If AuthenticationType is Windows (default) but UseWindowsAuth is false,
-            // this is a SQL Server auth server from an old config
-            if (server.AuthenticationType == AuthenticationTypes.Windows && !server.UseWindowsAuth)
-            {
-                server.AuthenticationType = AuthenticationTypes.SqlServer;
-                _logger?.LogInformation("Migrated server '{DisplayName}' authentication type from legacy UseWindowsAuth=false to AuthenticationType=SqlServer", 
-                    server.DisplayName);
-            }
-            // Ensure UseWindowsAuth stays in sync with AuthenticationType for consistency
-            else if (server.AuthenticationType == AuthenticationTypes.SqlServer || server.AuthenticationType == AuthenticationTypes.EntraMFA)
-            {
-                server.UseWindowsAuth = false;
-            }
-            else if (server.AuthenticationType == AuthenticationTypes.Windows)
-            {
-                server.UseWindowsAuth = true;
-            }
+            _logger?.LogDebug("Server '{DisplayName}' loaded with AuthenticationType={AuthType}", 
+                server.DisplayName, server.AuthenticationType);
         }
     }
 

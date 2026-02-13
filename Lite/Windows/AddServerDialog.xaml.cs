@@ -232,26 +232,22 @@ public partial class AddServerDialog : Window
 
         // Determine authentication type
         string authenticationType;
-        bool useWindowsAuth;
         string? username = null;
         string? password = null;
 
         if (WindowsAuthRadio.IsChecked == true)
         {
             authenticationType = AuthenticationTypes.Windows;
-            useWindowsAuth = true;
         }
         else if (EntraMfaAuthRadio.IsChecked == true)
         {
             authenticationType = AuthenticationTypes.EntraMFA;
-            useWindowsAuth = false;
             // Optionally store username for MFA
             username = EntraMfaUsernameBox.Text.Trim();
         }
         else // SQL Server Authentication
         {
             authenticationType = AuthenticationTypes.SqlServer;
-            useWindowsAuth = false;
             username = UsernameBox.Text.Trim();
             password = PasswordBox.Password;
 
@@ -269,7 +265,6 @@ public partial class AddServerDialog : Window
                 /* Editing existing server */
                 AddedServer.ServerName = serverName;
                 AddedServer.DisplayName = displayName;
-                AddedServer.UseWindowsAuth = useWindowsAuth;
                 AddedServer.AuthenticationType = authenticationType;
                 AddedServer.IsEnabled = EnabledCheckBox.IsChecked == true;
                 AddedServer.TrustServerCertificate = TrustCertCheckBox.IsChecked == true;
@@ -287,7 +282,6 @@ public partial class AddServerDialog : Window
                 {
                     ServerName = serverName,
                     DisplayName = displayName,
-                    UseWindowsAuth = useWindowsAuth,
                     AuthenticationType = authenticationType,
                     IsEnabled = EnabledCheckBox.IsChecked == true,
                     TrustServerCertificate = TrustCertCheckBox.IsChecked == true,

@@ -18,7 +18,27 @@ public class ServerConnection
     public string Id { get; set; } = Guid.NewGuid().ToString();
     public string ServerName { get; set; } = string.Empty;
     public string DisplayName { get; set; } = string.Empty;
-    public bool UseWindowsAuth { get; set; } = true;
+    
+    /// <summary>
+    /// Backward compatibility property for old servers.json files.
+    /// Returns true if authentication type is Windows.
+    /// Setter updates AuthenticationType for migration from old configs.
+    /// </summary>
+    public bool UseWindowsAuth 
+    { 
+        get => AuthenticationType == AuthenticationTypes.Windows;
+        set 
+        {
+            // During JSON deserialization of old configs, update AuthenticationType based on UseWindowsAuth
+            // Only apply this if AuthenticationType is still at default (indicating old JSON without that field)
+            if (AuthenticationType == AuthenticationTypes.Windows && !value)
+            {
+                // Old config with UseWindowsAuth=false -> SQL Server auth
+                AuthenticationType = AuthenticationTypes.SqlServer;
+            }
+            // If value is true, keep Windows (already the default)
+        }
+    }
     
     /// <summary>
     /// Authentication type: Windows, SqlServer, or EntraMFA

@@ -106,6 +106,7 @@ public partial class App : Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
+
         // Check for existing instance
         _singleInstanceMutex = new Mutex(true, MutexName, out bool isNewInstance);
 

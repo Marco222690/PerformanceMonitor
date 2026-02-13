@@ -37,10 +37,11 @@ public partial class ServerTab : UserControl
     private readonly Dictionary<ScottPlot.WPF.WpfPlot, ScottPlot.Panels.LegendPanel?> _legendPanels = new();
     private List<SelectableItem> _waitTypeItems = new();
     private List<SelectableItem> _perfmonCounterItems = new();
-    private readonly List<(ScottPlot.Plottables.Scatter Scatter, string WaitType)> _waitStatsScatters = new();
-    private readonly System.Windows.Controls.Primitives.Popup _waitStatsHoverPopup;
-    private readonly System.Windows.Controls.TextBlock _waitStatsHoverText;
-    private DateTime _lastHoverUpdate;
+    private Helpers.ChartHoverHelper? _waitStatsHover;
+    private Helpers.ChartHoverHelper? _perfmonHover;
+    private Helpers.ChartHoverHelper? _tempDbFileIoHover;
+    private Helpers.ChartHoverHelper? _fileIoReadHover;
+    private Helpers.ChartHoverHelper? _fileIoWriteHover;
 
     /* Column filtering */
     private Popup? _filterPopup;
@@ -122,30 +123,12 @@ public partial class ServerTab : UserControl
         /* Initialize column filter managers */
         InitializeFilterManagers();
 
-        /* Wait stats hover tooltip */
-        _waitStatsHoverText = new System.Windows.Controls.TextBlock
-        {
-            Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xE0, 0xE0, 0xE0)),
-            FontSize = 13
-        };
-        _waitStatsHoverPopup = new System.Windows.Controls.Primitives.Popup
-        {
-            PlacementTarget = WaitStatsChart,
-            Placement = System.Windows.Controls.Primitives.PlacementMode.Relative,
-            IsHitTestVisible = false,
-            AllowsTransparency = true,
-            Child = new System.Windows.Controls.Border
-            {
-                Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x33, 0x33, 0x33)),
-                BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x55, 0x55, 0x55)),
-                BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(3),
-                Padding = new Thickness(8, 4, 8, 4),
-                Child = _waitStatsHoverText
-            }
-        };
-        WaitStatsChart.MouseMove += WaitStatsChart_MouseMove;
-        WaitStatsChart.MouseLeave += WaitStatsChart_MouseLeave;
+        /* Chart hover tooltips */
+        _waitStatsHover = new Helpers.ChartHoverHelper(WaitStatsChart, "ms/sec");
+        _perfmonHover = new Helpers.ChartHoverHelper(PerfmonChart, "");
+        _tempDbFileIoHover = new Helpers.ChartHoverHelper(TempDbFileIoChart, "ms");
+        _fileIoReadHover = new Helpers.ChartHoverHelper(FileIoReadChart, "ms");
+        _fileIoWriteHover = new Helpers.ChartHoverHelper(FileIoWriteChart, "ms");
 
         /* Initial load is triggered by MainWindow.ConnectToServer calling RefreshData()
            after collectors finish - no Loaded handler needed */
@@ -705,6 +688,7 @@ public partial class ServerTab : UserControl
     private void UpdateTempDbFileIoChart(List<FileIoTrendPoint> data)
     {
         ClearChart(TempDbFileIoChart);
+        _tempDbFileIoHover?.Clear();
         ApplyDarkTheme(TempDbFileIoChart);
 
         if (data.Count == 0) { TempDbFileIoChart.Refresh(); return; }
@@ -731,6 +715,7 @@ public partial class ServerTab : UserControl
                 var plot = TempDbFileIoChart.Plot.Add.Scatter(times, latency);
                 plot.LegendText = fileGroup.Key;
                 plot.Color = color;
+                _tempDbFileIoHover?.Add(plot, fileGroup.Key);
                 maxLatency = Math.Max(maxLatency, latency.Max());
             }
         }
@@ -747,6 +732,8 @@ public partial class ServerTab : UserControl
     {
         ClearChart(FileIoReadChart);
         ClearChart(FileIoWriteChart);
+        _fileIoReadHover?.Clear();
+        _fileIoWriteHover?.Clear();
         ApplyDarkTheme(FileIoReadChart);
         ApplyDarkTheme(FileIoWriteChart);
 
@@ -776,6 +763,7 @@ public partial class ServerTab : UserControl
                 var readPlot = FileIoReadChart.Plot.Add.Scatter(times, readLatency);
                 readPlot.LegendText = dbGroup.Key;
                 readPlot.Color = color;
+                _fileIoReadHover?.Add(readPlot, dbGroup.Key);
                 readMax = Math.Max(readMax, readLatency.Max());
             }
 
@@ -784,6 +772,7 @@ public partial class ServerTab : UserControl
                 var writePlot = FileIoWriteChart.Plot.Add.Scatter(times, writeLatency);
                 writePlot.LegendText = dbGroup.Key;
                 writePlot.Color = color;
+                _fileIoWriteHover?.Add(writePlot, dbGroup.Key);
                 writeMax = Math.Max(writeMax, writeLatency.Max());
             }
         }
@@ -1116,7 +1105,7 @@ public partial class ServerTab : UserControl
 
             ClearChart(WaitStatsChart);
             ApplyDarkTheme(WaitStatsChart);
-            _waitStatsScatters.Clear();
+            _waitStatsHover?.Clear();
 
             if (selected.Count == 0) { WaitStatsChart.Refresh(); return; }
 
@@ -1146,7 +1135,7 @@ public partial class ServerTab : UserControl
                 var plot = WaitStatsChart.Plot.Add.Scatter(times, waitTime);
                 plot.LegendText = selected[i].DisplayName;
                 plot.Color = ScottPlot.Color.FromHex(SeriesColors[i % SeriesColors.Length]);
-                _waitStatsScatters.Add((plot, selected[i].DisplayName));
+                _waitStatsHover?.Add(plot, selected[i].DisplayName);
 
                 if (waitTime.Length > 0) globalMax = Math.Max(globalMax, waitTime.Max());
             }
@@ -1174,62 +1163,6 @@ public partial class ServerTab : UserControl
         {
             /* Ignore chart update errors */
         }
-    }
-
-    /* ========== Wait Stats Hover Tooltip ========== */
-
-    private void WaitStatsChart_MouseMove(object sender, System.Windows.Input.MouseEventArgs e)
-    {
-        if (_waitStatsScatters.Count == 0) return;
-        var now = DateTime.UtcNow;
-        if ((now - _lastHoverUpdate).TotalMilliseconds < 50) return;
-        _lastHoverUpdate = now;
-
-        var pos = e.GetPosition(WaitStatsChart);
-        var pixel = new ScottPlot.Pixel(
-            (float)(pos.X * WaitStatsChart.DisplayScale),
-            (float)(pos.Y * WaitStatsChart.DisplayScale));
-        var mouseCoords = WaitStatsChart.Plot.GetCoordinates(pixel);
-
-        double bestDistance = double.MaxValue;
-        ScottPlot.DataPoint bestPoint = default;
-        string bestWaitType = "";
-
-        foreach (var (scatter, waitType) in _waitStatsScatters)
-        {
-            var nearest = scatter.Data.GetNearest(mouseCoords, WaitStatsChart.Plot.LastRender);
-            if (nearest.IsReal)
-            {
-                var nearestPixel = WaitStatsChart.Plot.GetPixel(new ScottPlot.Coordinates(nearest.X, nearest.Y));
-                double dx = nearestPixel.X - pixel.X;
-                double dy = nearestPixel.Y - pixel.Y;
-                double dist = dx * dx + dy * dy;
-                if (dist < bestDistance)
-                {
-                    bestDistance = dist;
-                    bestPoint = nearest;
-                    bestWaitType = waitType;
-                }
-            }
-        }
-
-        if (bestPoint.IsReal && bestDistance < 2500) // ~50px radius
-        {
-            var time = DateTime.FromOADate(bestPoint.X);
-            _waitStatsHoverText.Text = $"{bestWaitType}\n{bestPoint.Y:N1} ms/sec\n{time:HH:mm:ss}";
-            _waitStatsHoverPopup.HorizontalOffset = pos.X + 15;
-            _waitStatsHoverPopup.VerticalOffset = pos.Y + 15;
-            _waitStatsHoverPopup.IsOpen = true;
-        }
-        else
-        {
-            _waitStatsHoverPopup.IsOpen = false;
-        }
-    }
-
-    private void WaitStatsChart_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
-    {
-        _waitStatsHoverPopup.IsOpen = false;
     }
 
     /* ========== Perfmon Picker ========== */
@@ -1312,6 +1245,7 @@ public partial class ServerTab : UserControl
             var selected = _perfmonCounterItems.Where(i => i.IsSelected).Take(12).ToList();
 
             ClearChart(PerfmonChart);
+            _perfmonHover?.Clear();
             ApplyDarkTheme(PerfmonChart);
 
             if (selected.Count == 0) { PerfmonChart.Refresh(); return; }
@@ -1342,6 +1276,7 @@ public partial class ServerTab : UserControl
                 var plot = PerfmonChart.Plot.Add.Scatter(times, values);
                 plot.LegendText = selected[i].DisplayName;
                 plot.Color = ScottPlot.Color.FromHex(SeriesColors[i % SeriesColors.Length]);
+                _perfmonHover?.Add(plot, selected[i].DisplayName);
 
                 if (values.Length > 0) globalMax = Math.Max(globalMax, values.Max());
             }

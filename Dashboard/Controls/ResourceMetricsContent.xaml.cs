@@ -92,10 +92,13 @@ namespace PerformanceMonitorDashboard.Controls
         private List<WaitStatsDataPoint>? _allWaitStatsDetailData;
         private List<WaitTypeSelectionItem>? _waitTypeItems;
         private bool _isUpdatingWaitTypeSelection = false;
-        private readonly List<(ScottPlot.Plottables.Scatter Scatter, string WaitType)> _waitStatsScatters = new();
-        private readonly Popup _waitStatsHoverPopup;
-        private readonly System.Windows.Controls.TextBlock _waitStatsHoverText;
-        private DateTime _lastHoverUpdate;
+        private Helpers.ChartHoverHelper? _sessionStatsHover;
+        private Helpers.ChartHoverHelper? _latchStatsHover;
+        private Helpers.ChartHoverHelper? _spinlockStatsHover;
+        private Helpers.ChartHoverHelper? _fileIoReadHover;
+        private Helpers.ChartHoverHelper? _fileIoWriteHover;
+        private Helpers.ChartHoverHelper? _perfmonHover;
+        private Helpers.ChartHoverHelper? _waitStatsHover;
         // Column filter popup and state
         private Popup? _filterPopup;
         private ColumnFilterPopup? _filterPopupContent;
@@ -120,29 +123,13 @@ namespace PerformanceMonitorDashboard.Controls
             SetupChartContextMenus();
             Loaded += OnLoaded;
 
-            _waitStatsHoverText = new System.Windows.Controls.TextBlock
-            {
-                Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xE0, 0xE0, 0xE0)),
-                FontSize = 13
-            };
-            _waitStatsHoverPopup = new Popup
-            {
-                PlacementTarget = WaitStatsDetailChart,
-                Placement = System.Windows.Controls.Primitives.PlacementMode.Relative,
-                IsHitTestVisible = false,
-                AllowsTransparency = true,
-                Child = new System.Windows.Controls.Border
-                {
-                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x33, 0x33, 0x33)),
-                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x55, 0x55, 0x55)),
-                    BorderThickness = new Thickness(1),
-                    CornerRadius = new CornerRadius(3),
-                    Padding = new Thickness(8, 4, 8, 4),
-                    Child = _waitStatsHoverText
-                }
-            };
-            WaitStatsDetailChart.MouseMove += WaitStatsDetailChart_MouseMove;
-            WaitStatsDetailChart.MouseLeave += WaitStatsDetailChart_MouseLeave;
+            _sessionStatsHover = new Helpers.ChartHoverHelper(SessionStatsChart, "sessions");
+            _latchStatsHover = new Helpers.ChartHoverHelper(LatchStatsChart, "ms/sec");
+            _spinlockStatsHover = new Helpers.ChartHoverHelper(SpinlockStatsChart, "collisions/sec");
+            _fileIoReadHover = new Helpers.ChartHoverHelper(UserDbReadLatencyChart, "ms");
+            _fileIoWriteHover = new Helpers.ChartHoverHelper(UserDbWriteLatencyChart, "ms");
+            _perfmonHover = new Helpers.ChartHoverHelper(PerfmonCountersChart, "");
+            _waitStatsHover = new Helpers.ChartHoverHelper(WaitStatsDetailChart, "ms/sec");
         }
 
         private void OnLoaded(object sender, RoutedEventArgs e)
@@ -305,6 +292,7 @@ namespace PerformanceMonitorDashboard.Controls
             }
             LatchStatsChart.Plot.Clear();
             TabHelpers.ApplyDarkModeToChart(LatchStatsChart);
+            _latchStatsHover?.Clear();
 
             var dataList = data?.ToList() ?? new List<LatchStatsItem>();
             if (dataList.Count > 0)
@@ -337,6 +325,7 @@ namespace PerformanceMonitorDashboard.Controls
                         scatter.MarkerSize = 0;
                         scatter.Color = colors[colorIndex % colors.Length];
                         scatter.LegendText = latchClass?.Length > 20 ? latchClass.Substring(0, 20) + "..." : latchClass ?? "";
+                        _latchStatsHover?.Add(scatter, latchClass ?? "");
                         colorIndex++;
                     }
                 }
@@ -395,6 +384,7 @@ namespace PerformanceMonitorDashboard.Controls
             }
             SpinlockStatsChart.Plot.Clear();
             TabHelpers.ApplyDarkModeToChart(SpinlockStatsChart);
+            _spinlockStatsHover?.Clear();
 
             var dataList = data?.ToList() ?? new List<SpinlockStatsItem>();
             if (dataList.Count > 0)
@@ -427,6 +417,7 @@ namespace PerformanceMonitorDashboard.Controls
                         scatter.MarkerSize = 0;
                         scatter.Color = colors[colorIndex % colors.Length];
                         scatter.LegendText = spinlock?.Length > 20 ? spinlock.Substring(0, 20) + "..." : spinlock ?? "";
+                        _spinlockStatsHover?.Add(scatter, spinlock ?? "");
                         colorIndex++;
                     }
                 }
@@ -714,6 +705,7 @@ namespace PerformanceMonitorDashboard.Controls
             }
             SessionStatsChart.Plot.Clear();
             TabHelpers.ApplyDarkModeToChart(SessionStatsChart);
+            _sessionStatsHover?.Clear();
 
             var dataList = data?.OrderBy(d => d.CollectionTime).ToList() ?? new List<SessionStatsItem>();
             if (dataList.Count > 0)
@@ -731,6 +723,7 @@ namespace PerformanceMonitorDashboard.Controls
                     totalScatter.MarkerSize = 0;
                     totalScatter.Color = ScottPlot.Colors.Blue;
                     totalScatter.LegendText = "Total";
+                    _sessionStatsHover?.Add(totalScatter, "Total");
                 }
 
                 if (runningCounts.Any(c => c > 0))
@@ -741,6 +734,7 @@ namespace PerformanceMonitorDashboard.Controls
                     runningScatter.MarkerSize = 0;
                     runningScatter.Color = ScottPlot.Colors.Green;
                     runningScatter.LegendText = "Running";
+                    _sessionStatsHover?.Add(runningScatter, "Running");
                 }
 
                 if (sleepingCounts.Any(c => c > 0))
@@ -751,6 +745,7 @@ namespace PerformanceMonitorDashboard.Controls
                     sleepingScatter.MarkerSize = 0;
                     sleepingScatter.Color = ScottPlot.Colors.Orange;
                     sleepingScatter.LegendText = "Sleeping";
+                    _sessionStatsHover?.Add(sleepingScatter, "Sleeping");
                 }
 
                 double[] backgroundCounts = dataList.Select(d => (double)d.BackgroundSessions).ToArray();
@@ -762,6 +757,7 @@ namespace PerformanceMonitorDashboard.Controls
                     backgroundScatter.MarkerSize = 0;
                     backgroundScatter.Color = ScottPlot.Colors.Purple;
                     backgroundScatter.LegendText = "Background";
+                    _sessionStatsHover?.Add(backgroundScatter, "Background");
                 }
 
                 double[] dormantCounts = dataList.Select(d => (double)d.DormantSessions).ToArray();
@@ -773,6 +769,7 @@ namespace PerformanceMonitorDashboard.Controls
                     dormantScatter.MarkerSize = 0;
                     dormantScatter.Color = ScottPlot.Colors.Cyan;
                     dormantScatter.LegendText = "Dormant";
+                    _sessionStatsHover?.Add(dormantScatter, "Dormant");
                 }
 
                 double[] idleOver30MinCounts = dataList.Select(d => (double)d.IdleSessionsOver30Min).ToArray();
@@ -784,6 +781,7 @@ namespace PerformanceMonitorDashboard.Controls
                     idleScatter.MarkerSize = 0;
                     idleScatter.Color = ScottPlot.Colors.Gray;
                     idleScatter.LegendText = "Idle >30m";
+                    _sessionStatsHover?.Add(idleScatter, "Idle >30m");
                 }
 
                 double[] waitingForMemoryCounts = dataList.Select(d => (double)d.SessionsWaitingForMemory).ToArray();
@@ -795,6 +793,7 @@ namespace PerformanceMonitorDashboard.Controls
                     waitingScatter.MarkerSize = 0;
                     waitingScatter.Color = ScottPlot.Colors.Red;
                     waitingScatter.LegendText = "Waiting for Memory";
+                    _sessionStatsHover?.Add(waitingScatter, "Waiting for Memory");
                 }
 
                 // Update summary panel with latest data point
@@ -860,11 +859,11 @@ namespace PerformanceMonitorDashboard.Controls
 
             // Load User DB data only - TempDB latency moved to TempDB Stats tab
             var userDbData = await _databaseService.GetFileIoLatencyTimeSeriesAsync(isTempDb: false, _fileIoHoursBack, _fileIoFromDate, _fileIoToDate);
-            LoadFileIoChart(UserDbReadLatencyChart, userDbData, d => d.ReadLatencyMs, "Read Latency (ms)", colors, xMin, xMax);
-            LoadFileIoChart(UserDbWriteLatencyChart, userDbData, d => d.WriteLatencyMs, "Write Latency (ms)", colors, xMin, xMax);
+            LoadFileIoChart(UserDbReadLatencyChart, userDbData, d => d.ReadLatencyMs, "Read Latency (ms)", colors, xMin, xMax, _fileIoReadHover);
+            LoadFileIoChart(UserDbWriteLatencyChart, userDbData, d => d.WriteLatencyMs, "Write Latency (ms)", colors, xMin, xMax, _fileIoWriteHover);
         }
 
-        private void LoadFileIoChart(ScottPlot.WPF.WpfPlot chart, List<FileIoLatencyTimeSeriesItem> data, Func<FileIoLatencyTimeSeriesItem, decimal> latencySelector, string yLabel, ScottPlot.Color[] colors, double xMin, double xMax)
+        private void LoadFileIoChart(ScottPlot.WPF.WpfPlot chart, List<FileIoLatencyTimeSeriesItem> data, Func<FileIoLatencyTimeSeriesItem, decimal> latencySelector, string yLabel, ScottPlot.Color[] colors, double xMin, double xMax, Helpers.ChartHoverHelper? hover = null)
         {
             DateTime rangeStart = DateTime.FromOADate(xMin);
             DateTime rangeEnd = DateTime.FromOADate(xMax);
@@ -877,6 +876,7 @@ namespace PerformanceMonitorDashboard.Controls
             }
             chart.Plot.Clear();
             TabHelpers.ApplyDarkModeToChart(chart);
+            hover?.Clear();
 
             if (data != null && data.Count > 0)
             {
@@ -904,7 +904,9 @@ namespace PerformanceMonitorDashboard.Controls
                         scatter.Color = colors[colorIndex % colors.Length];
 
                         // Use just the filename for legend (not database.filename which is redundant)
-                        scatter.LegendText = fileData.First().FileName;
+                        var fileName = fileData.First().FileName;
+                        scatter.LegendText = fileName;
+                        hover?.Add(scatter, fileName);
 
                         colorIndex++;
                     }
@@ -1690,6 +1692,7 @@ namespace PerformanceMonitorDashboard.Controls
             }
             PerfmonCountersChart.Plot.Clear();
             TabHelpers.ApplyDarkModeToChart(PerfmonCountersChart);
+            _perfmonHover?.Clear();
 
             if (data == null || data.Count == 0 || _perfmonCounterItems == null)
             {
@@ -1737,6 +1740,7 @@ namespace PerformanceMonitorDashboard.Controls
                     scatter.MarkerSize = 3; // Show small markers to ensure visibility
                     scatter.Color = colors[colorIndex % colors.Length];
                     scatter.LegendText = counter.CounterName;
+                    _perfmonHover?.Add(scatter, counter.CounterName);
 
                     colorIndex++;
                 }
@@ -2057,7 +2061,7 @@ namespace PerformanceMonitorDashboard.Controls
             }
             WaitStatsDetailChart.Plot.Clear();
             TabHelpers.ApplyDarkModeToChart(WaitStatsDetailChart);
-            _waitStatsScatters.Clear();
+            _waitStatsHover?.Clear();
 
             if (data == null || data.Count == 0 || _waitTypeItems == null)
             {
@@ -2110,7 +2114,7 @@ namespace PerformanceMonitorDashboard.Controls
                     if (legendText.Length > 25)
                         legendText = legendText.Substring(0, 22) + "...";
                     scatter.LegendText = legendText;
-                    _waitStatsScatters.Add((scatter, waitType.WaitType));
+                    _waitStatsHover?.Add(scatter, waitType.WaitType);
 
                     colorIndex++;
                 }
@@ -2137,60 +2141,6 @@ namespace PerformanceMonitorDashboard.Controls
             WaitStatsDetailChart.Plot.HideGrid();
             TabHelpers.LockChartVerticalAxis(WaitStatsDetailChart);
             WaitStatsDetailChart.Refresh();
-        }
-
-        private void WaitStatsDetailChart_MouseMove(object sender, System.Windows.Input.MouseEventArgs e)
-        {
-            if (_waitStatsScatters.Count == 0) return;
-            var now = DateTime.UtcNow;
-            if ((now - _lastHoverUpdate).TotalMilliseconds < 50) return;
-            _lastHoverUpdate = now;
-
-            var pos = e.GetPosition(WaitStatsDetailChart);
-            var pixel = new ScottPlot.Pixel(
-                (float)(pos.X * WaitStatsDetailChart.DisplayScale),
-                (float)(pos.Y * WaitStatsDetailChart.DisplayScale));
-            var mouseCoords = WaitStatsDetailChart.Plot.GetCoordinates(pixel);
-
-            double bestDistance = double.MaxValue;
-            ScottPlot.DataPoint bestPoint = default;
-            string bestWaitType = "";
-
-            foreach (var (scatter, waitType) in _waitStatsScatters)
-            {
-                var nearest = scatter.Data.GetNearest(mouseCoords, WaitStatsDetailChart.Plot.LastRender);
-                if (nearest.IsReal)
-                {
-                    var nearestPixel = WaitStatsDetailChart.Plot.GetPixel(new ScottPlot.Coordinates(nearest.X, nearest.Y));
-                    double dx = nearestPixel.X - pixel.X;
-                    double dy = nearestPixel.Y - pixel.Y;
-                    double dist = dx * dx + dy * dy;
-                    if (dist < bestDistance)
-                    {
-                        bestDistance = dist;
-                        bestPoint = nearest;
-                        bestWaitType = waitType;
-                    }
-                }
-            }
-
-            if (bestPoint.IsReal && bestDistance < 2500) // ~50px radius
-            {
-                var time = DateTime.FromOADate(bestPoint.X);
-                _waitStatsHoverText.Text = $"{bestWaitType}\n{bestPoint.Y:N1} ms/sec\n{time:HH:mm:ss}";
-                _waitStatsHoverPopup.HorizontalOffset = pos.X + 15;
-                _waitStatsHoverPopup.VerticalOffset = pos.Y + 15;
-                _waitStatsHoverPopup.IsOpen = true;
-            }
-            else
-            {
-                _waitStatsHoverPopup.IsOpen = false;
-            }
-        }
-
-        private void WaitStatsDetailChart_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
-        {
-            _waitStatsHoverPopup.IsOpen = false;
         }
 
         #endregion

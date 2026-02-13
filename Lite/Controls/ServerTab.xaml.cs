@@ -72,7 +72,8 @@ public partial class ServerTab : UserControl
     {
         "#4FC3F7", "#E57373", "#81C784", "#FFD54F", "#BA68C8",
         "#FFB74D", "#4DD0E1", "#F06292", "#AED581", "#7986CB",
-        "#FFF176", "#A1887F"
+        "#FFF176", "#A1887F", "#FF7043", "#80DEEA", "#FFE082",
+        "#CE93D8", "#EF9A9A", "#C5E1A5", "#FFCC80", "#B0BEC5"
     };
 
     public int UtcOffsetMinutes { get; }
@@ -1026,15 +1027,41 @@ public partial class ServerTab : UserControl
 
     /* ========== Wait Stats Picker ========== */
 
+    private static readonly string[] PoisonWaits = { "THREADPOOL", "RESOURCE_SEMAPHORE", "RESOURCE_SEMAPHORE_QUERY_COMPILE" };
+    private static readonly string[] UsualSuspectWaits = { "SOS_SCHEDULER_YIELD", "CXPACKET", "CXCONSUMER", "PAGEIOLATCH_SH", "PAGEIOLATCH_EX", "WRITELOG" };
+    private static readonly string[] UsualSuspectPrefixes = { "PAGELATCH_" };
+
+    private static HashSet<string> GetDefaultWaitTypes(List<string> availableWaitTypes)
+    {
+        var defaults = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var w in PoisonWaits)
+            if (availableWaitTypes.Contains(w)) defaults.Add(w);
+        foreach (var w in UsualSuspectWaits)
+            if (availableWaitTypes.Contains(w)) defaults.Add(w);
+        foreach (var prefix in UsualSuspectPrefixes)
+            foreach (var w in availableWaitTypes)
+                if (w.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                    defaults.Add(w);
+        int added = 0;
+        foreach (var w in availableWaitTypes)
+        {
+            if (defaults.Count >= 20) break;
+            if (added >= 10) break;
+            if (defaults.Add(w)) { added++; }
+        }
+        return defaults;
+    }
+
     private bool _isUpdatingWaitTypeSelection;
 
     private void PopulateWaitTypePicker(List<string> waitTypes)
     {
         var previouslySelected = new HashSet<string>(_waitTypeItems.Where(i => i.IsSelected).Select(i => i.DisplayName));
+        var topWaits = previouslySelected.Count == 0 ? GetDefaultWaitTypes(waitTypes) : null;
         _waitTypeItems = waitTypes.Select(w => new SelectableItem
         {
             DisplayName = w,
-            IsSelected = previouslySelected.Contains(w) || (previouslySelected.Count == 0 && waitTypes.IndexOf(w) < 10)
+            IsSelected = previouslySelected.Contains(w) || (topWaits != null && topWaits.Contains(w))
         }).ToList();
         /* Sort checked items to top, then preserve original order (by total wait time desc) */
         RefreshWaitTypeListOrder();
@@ -1045,9 +1072,20 @@ public partial class ServerTab : UserControl
         if (_waitTypeItems == null) return;
         _waitTypeItems = _waitTypeItems
             .OrderByDescending(x => x.IsSelected)
-            .ThenBy(x => _waitTypeItems.IndexOf(x))
+            .ThenBy(x => x.DisplayName)
             .ToList();
         ApplyWaitTypeFilter();
+        UpdateWaitTypeCount();
+    }
+
+    private void UpdateWaitTypeCount()
+    {
+        if (_waitTypeItems == null || WaitTypeCountText == null) return;
+        int count = _waitTypeItems.Count(x => x.IsSelected);
+        WaitTypeCountText.Text = $"{count} / 20 selected";
+        WaitTypeCountText.Foreground = count >= 20
+            ? new SolidColorBrush((System.Windows.Media.Color)ColorConverter.ConvertFromString("#E57373")!)
+            : (System.Windows.Media.Brush)FindResource("ForegroundMutedBrush");
     }
 
     private void ApplyWaitTypeFilter()
@@ -1065,15 +1103,10 @@ public partial class ServerTab : UserControl
     private void WaitTypeSelectAll_Click(object sender, RoutedEventArgs e)
     {
         _isUpdatingWaitTypeSelection = true;
-        var visible = (WaitTypesList.ItemsSource as IEnumerable<SelectableItem>)?.ToList() ?? _waitTypeItems;
-        int count = visible.Count(i => i.IsSelected);
-        foreach (var item in visible)
+        var topWaits = GetDefaultWaitTypes(_waitTypeItems.Select(x => x.DisplayName).ToList());
+        foreach (var item in _waitTypeItems)
         {
-            if (!item.IsSelected && count < 12)
-            {
-                item.IsSelected = true;
-                count++;
-            }
+            item.IsSelected = topWaits.Contains(item.DisplayName);
         }
         _isUpdatingWaitTypeSelection = false;
         RefreshWaitTypeListOrder();
@@ -1101,7 +1134,7 @@ public partial class ServerTab : UserControl
     {
         try
         {
-            var selected = _waitTypeItems.Where(i => i.IsSelected).Take(12).ToList();
+            var selected = _waitTypeItems.Where(i => i.IsSelected).Take(20).ToList();
 
             ClearChart(WaitStatsChart);
             ApplyDarkTheme(WaitStatsChart);

@@ -1890,6 +1890,17 @@ namespace PerformanceMonitorDashboard.Controls
                 .ToList();
             _waitTypeItems = sorted;
             ApplyWaitTypeSearchFilter();
+            UpdateWaitTypeCount();
+        }
+
+        private void UpdateWaitTypeCount()
+        {
+            if (_waitTypeItems == null || WaitTypeCountText == null) return;
+            int count = _waitTypeItems.Count(x => x.IsSelected);
+            WaitTypeCountText.Text = $"{count} / 20 selected";
+            WaitTypeCountText.Foreground = count >= 20
+                ? new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#E57373")!)
+                : (System.Windows.Media.Brush)FindResource("ForegroundMutedBrush");
         }
 
         private void WaitTypeSearch_TextChanged(object sender, TextChangedEventArgs e)
@@ -1925,19 +1936,10 @@ namespace PerformanceMonitorDashboard.Controls
         {
             if (_waitTypeItems == null) return;
             _isUpdatingWaitTypeSelection = true;
-            // Only select first 12 (color limit)
-            int count = 0;
+            var topWaits = TabHelpers.GetDefaultWaitTypes(_waitTypeItems.Select(x => x.WaitType).ToList());
             foreach (var item in _waitTypeItems)
             {
-                if (count < 12)
-                {
-                    item.IsSelected = true;
-                    count++;
-                }
-                else
-                {
-                    item.IsSelected = false;
-                }
+                item.IsSelected = topWaits.Contains(item.WaitType);
             }
             _isUpdatingWaitTypeSelection = false;
             RefreshWaitTypeListOrder();
@@ -1953,6 +1955,7 @@ namespace PerformanceMonitorDashboard.Controls
                 item.IsSelected = false;
             }
             _isUpdatingWaitTypeSelection = false;
+            UpdateWaitTypeCount();
             await UpdateWaitStatsDetailChartAsync();
         }
 
@@ -1989,21 +1992,13 @@ namespace PerformanceMonitorDashboard.Controls
                     })
                     .ToList();
 
-                // If nothing was previously selected, default select some common wait types
+                // If nothing was previously selected, apply poison waits + usual suspects + top 10
                 if (!waitTypes.Any(w => w.IsSelected))
                 {
-                    var defaultWaitTypes = new[] { "CXPACKET", "SOS_SCHEDULER_YIELD", "PAGEIOLATCH_SH", "LCK_M_X", "ASYNC_NETWORK_IO", "WRITELOG" };
-                    foreach (var item in waitTypes.Where(w => defaultWaitTypes.Contains(w.WaitType)))
+                    var topWaits = TabHelpers.GetDefaultWaitTypes(waitTypes.Select(w => w.WaitType).ToList());
+                    foreach (var item in waitTypes.Where(w => topWaits.Contains(w.WaitType)))
                     {
                         item.IsSelected = true;
-                    }
-                    // If none of the defaults exist, select the top 5
-                    if (!waitTypes.Any(w => w.IsSelected) && waitTypes.Count > 0)
-                    {
-                        foreach (var item in waitTypes.Take(5))
-                        {
-                            item.IsSelected = true;
-                        }
                     }
                 }
 
@@ -2077,7 +2072,7 @@ namespace PerformanceMonitorDashboard.Controls
 
             // Get all time points across all wait types for gap filling
             int colorIndex = 0;
-            foreach (var waitType in selectedWaitTypes.Take(12)) // Limit to 12 wait types
+            foreach (var waitType in selectedWaitTypes.Take(20)) // Limit to 20 wait types
             {
                 // Get data for this wait type
                 var waitTypeData = data

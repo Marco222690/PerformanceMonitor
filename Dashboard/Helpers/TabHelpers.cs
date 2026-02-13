@@ -47,7 +47,81 @@ namespace PerformanceMonitorDashboard.Helpers
             ScottPlot.Color.FromHex("#90A4AE"), // [9]  Blue Grey 300
             ScottPlot.Color.FromHex("#A1887F"), // [10] Brown 300
             ScottPlot.Color.FromHex("#7986CB"), // [11] Indigo 300
+            ScottPlot.Color.FromHex("#FF7043"), // [12] Deep Orange 300
+            ScottPlot.Color.FromHex("#80DEEA"), // [13] Cyan 200
+            ScottPlot.Color.FromHex("#FFE082"), // [14] Amber 200
+            ScottPlot.Color.FromHex("#CE93D8"), // [15] Purple 200
+            ScottPlot.Color.FromHex("#EF9A9A"), // [16] Red 200
+            ScottPlot.Color.FromHex("#C5E1A5"), // [17] Light Green 200
+            ScottPlot.Color.FromHex("#FFCC80"), // [18] Orange 200
+            ScottPlot.Color.FromHex("#B0BEC5"), // [19] Blue Grey 200
         };
+
+        /// <summary>
+        /// Poison waits — always selected by default. These indicate critical resource exhaustion.
+        /// </summary>
+        public static readonly string[] PoisonWaits = new[]
+        {
+            "THREADPOOL",
+            "RESOURCE_SEMAPHORE",
+            "RESOURCE_SEMAPHORE_QUERY_COMPILE"
+        };
+
+        /// <summary>
+        /// Usual suspect waits — always selected by default. Common performance-relevant wait types.
+        /// </summary>
+        public static readonly string[] UsualSuspectWaits = new[]
+        {
+            "SOS_SCHEDULER_YIELD",
+            "CXPACKET",
+            "CXCONSUMER",
+            "PAGEIOLATCH_SH",
+            "PAGEIOLATCH_EX",
+            "WRITELOG"
+        };
+
+        /// <summary>
+        /// Prefix patterns for usual suspect waits (e.g. PAGELATCH_EX, PAGELATCH_SH, etc.)
+        /// </summary>
+        public static readonly string[] UsualSuspectPrefixes = new[] { "PAGELATCH_" };
+
+        /// <summary>
+        /// Returns the set of wait types that should be selected by default:
+        /// poison waits + usual suspects + top 10 by total wait time (deduped), capped at 20.
+        /// The availableWaitTypes list must be sorted by total wait time descending.
+        /// </summary>
+        public static HashSet<string> GetDefaultWaitTypes(IList<string> availableWaitTypes)
+        {
+            var defaults = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            // 1. Poison waits that exist in data
+            foreach (var w in PoisonWaits)
+                if (availableWaitTypes.Contains(w)) defaults.Add(w);
+
+            // 2. Usual suspects — exact matches
+            foreach (var w in UsualSuspectWaits)
+                if (availableWaitTypes.Contains(w)) defaults.Add(w);
+
+            // 3. Usual suspects — prefix matches
+            foreach (var prefix in UsualSuspectPrefixes)
+                foreach (var w in availableWaitTypes)
+                    if (w.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                        defaults.Add(w);
+
+            // 4. Top 10 by total wait time (items not already in the set), hard cap at 20 total
+            int added = 0;
+            foreach (var w in availableWaitTypes)
+            {
+                if (defaults.Count >= 20) break;
+                if (added >= 10) break;
+                if (defaults.Add(w))
+                {
+                    added++;
+                }
+            }
+
+            return defaults;
+        }
 
         /// <summary>
         /// Applies the Darling Data dark theme to a ScottPlot chart.

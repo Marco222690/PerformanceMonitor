@@ -5,6 +5,8 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  release:
+    types: [created]
 
 jobs:
   build:
@@ -25,14 +27,57 @@ jobs:
           dotnet restore Installer/PerformanceMonitorInstaller.csproj
           dotnet restore InstallerGui/InstallerGui.csproj
 
-      - name: Build Dashboard
-        run: dotnet build Dashboard/Dashboard.csproj -c Release --no-restore
+      - name: Get version
+        id: version
+        shell: pwsh
+        run: |
+          $version = ([xml](Get-Content Dashboard/Dashboard.csproj)).Project.PropertyGroup.Version | Where-Object { $_ }
+          echo "VERSION=$version" >> $env:GITHUB_OUTPUT
 
-      - name: Build Lite Edition
-        run: dotnet build Lite/PerformanceMonitorLite.csproj -c Release --no-restore
+      - name: Publish Dashboard
+        run: dotnet publish Dashboard/Dashboard.csproj -c Release -o publish/Dashboard
 
-      - name: Build CLI Installer
-        run: dotnet build Installer/PerformanceMonitorInstaller.csproj -c Release --no-restore
+      - name: Publish Lite
+        run: dotnet publish Lite/PerformanceMonitorLite.csproj -c Release -o publish/Lite
 
-      - name: Build GUI Installer
-        run: dotnet build InstallerGui/InstallerGui.csproj -c Release --no-restore
+      - name: Publish CLI Installer
+        run: dotnet publish Installer/PerformanceMonitorInstaller.csproj -c Release
+
+      - name: Publish GUI Installer
+        run: dotnet publish InstallerGui/InstallerGui.csproj -c Release -r win-x64 --self-contained
+
+      - name: Package release artifacts
+        if: github.event_name == 'release'
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.VERSION }}"
+          New-Item -ItemType Directory -Force -Path releases
+
+          # Dashboard ZIP
+          Compress-Archive -Path 'publish/Dashboard/*' -DestinationPath "releases/PerformanceMonitorDashboard-$version.zip" -Force
+
+          # Lite ZIP
+          Compress-Archive -Path 'publish/Lite/*' -DestinationPath "releases/PerformanceMonitorLite-$version.zip" -Force
+
+          # Installer ZIP (CLI + GUI + SQL scripts)
+          $instDir = 'publish/Installer'
+          New-Item -ItemType Directory -Force -Path $instDir
+          New-Item -ItemType Directory -Force -Path "$instDir/install"
+          New-Item -ItemType Directory -Force -Path "$instDir/upgrades"
+
+          Copy-Item 'Installer/bin/Release/net8.0/win-x64/publish/PerformanceMonitorInstaller.exe' $instDir
+          Copy-Item 'InstallerGui/bin/Release/net8.0-windows/win-x64/publish/InstallerGui.exe' $instDir -ErrorAction SilentlyContinue
+          Copy-Item 'install/*.sql' "$instDir/install/"
+          if (Test-Path 'upgrades') { Copy-Item 'upgrades/*' "$instDir/upgrades/" -Recurse -ErrorAction SilentlyContinue }
+          if (Test-Path 'README.md') { Copy-Item 'README.md' $instDir }
+          if (Test-Path 'LICENSE') { Copy-Item 'LICENSE' $instDir }
+          if (Test-Path 'THIRD_PARTY_NOTICES.md') { Copy-Item 'THIRD_PARTY_NOTICES.md' $instDir }
+
+          Compress-Archive -Path 'publish/Installer/*' -DestinationPath "releases/PerformanceMonitorInstaller-$version.zip" -Force
+
+      - name: Upload release assets
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload ${{ github.event.release.tag_name }} releases/*.zip --clobber

@@ -16,6 +16,7 @@ using DuckDB.NET.Data;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
 using PerformanceMonitorLite.Database;
+using PerformanceMonitorLite.Helpers;
 using PerformanceMonitorLite.Models;
 
 
@@ -64,6 +65,12 @@ public partial class RemoteCollectorService
     /// Limits concurrent SQL connections to avoid overwhelming target servers.
     /// </summary>
     private static readonly SemaphoreSlim s_connectionThrottle = new(7, 7);
+
+    /// <summary>
+    /// Serializes MFA authentication attempts to prevent multiple popups.
+    /// Only one MFA authentication can happen at a time.
+    /// </summary>
+    private static readonly SemaphoreSlim s_mfaAuthLock = new(1, 1);
 
     /// <summary>
     /// Command timeout for DMV queries in seconds.
@@ -260,6 +267,16 @@ public partial class RemoteCollectorService
                 return;
             }
 
+            // Skip MFA servers if user has cancelled authentication
+            // This prevents repeated popup dialogs during background data collection
+            if (server.AuthenticationType == AuthenticationTypes.EntraMFA && serverStatus.UserCancelledMfa)
+            {
+                AppLogger.Info("Collector", $"  [{server.DisplayName}] {collectorName} SKIPPED - MFA authentication cancelled by user");
+                _logger?.LogDebug("Skipping collector '{Collector}' for server '{Server}' - user cancelled MFA",
+                    collectorName, server.DisplayName);
+                return;
+            }
+
             _logger?.LogDebug("Running collector '{Collector}' for server '{Server}'",
                 collectorName, server.DisplayName);
 
@@ -319,6 +336,13 @@ public partial class RemoteCollectorService
                 _logger?.LogError(ex, "Collector '{Collector}' SQL error #{ErrorNumber} for server '{Server}'",
                     collectorName, ex.Number, server.DisplayName);
             }
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("MFA authentication cancelled"))
+        {
+            // User cancelled MFA - don't log as error, this is expected
+            status = "SKIPPED";
+            errorMessage = "MFA authentication cancelled by user";
+            AppLogger.Info("Collector", $"  [{server.DisplayName}] {collectorName} SKIPPED - {errorMessage}");
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -401,13 +425,36 @@ public partial class RemoteCollectorService
 
     /// <summary>
     /// Creates a SQL connection to a remote server.
+    /// Throws InvalidOperationException if MFA authentication was cancelled by user.
     /// </summary>
     protected async Task<SqlConnection> CreateConnectionAsync(ServerConnection server, CancellationToken cancellationToken)
     {
-        await s_connectionThrottle.WaitAsync(cancellationToken);
+        // For MFA servers, serialize authentication attempts to prevent multiple popups
+        bool isMfaServer = server.AuthenticationType == AuthenticationTypes.EntraMFA;
+        bool mfaLockAcquired = false;
+
         try
         {
-            var connectionString = server.GetConnectionString(_serverManager.CredentialService);
+            // Acquire MFA lock first (if applicable) to serialize authentication
+            if (isMfaServer)
+            {
+                await s_mfaAuthLock.WaitAsync(cancellationToken);
+                mfaLockAcquired = true;
+
+                // Check if user already cancelled MFA for this server
+                var serverStatus = _serverManager.GetConnectionStatus(server.Id);
+                if (serverStatus.UserCancelledMfa)
+                {
+                    AppLogger.Info("Collector", $"  [{server.DisplayName}] MFA authentication already cancelled - aborting");
+                    throw new InvalidOperationException("MFA authentication cancelled by user. Please connect to the server explicitly to retry.");
+                }
+            }
+
+            // Now acquire connection throttle
+            await s_connectionThrottle.WaitAsync(cancellationToken);
+            try
+            {
+                var connectionString = server.GetConnectionString(_serverManager.CredentialService);
 
             var builder = new SqlConnectionStringBuilder(connectionString)
             {
@@ -416,16 +463,41 @@ public partial class RemoteCollectorService
 
             var connStr = builder.ConnectionString;
 
-            return await RetryHelper.ExecuteWithRetryAsync(async () =>
+                return await RetryHelper.ExecuteWithRetryAsync(async () =>
+                {
+                    var connection = new SqlConnection(connStr);
+                    
+                    try
+                    {
+                        await connection.OpenAsync(cancellationToken);
+                        return connection;
+                    }
+                    catch (Exception ex) when (isMfaServer)
+                    {
+                        // Detect MFA cancellation and mark immediately so other waiting connections abort
+                        if (MfaAuthenticationHelper.IsMfaCancelledException(ex))
+                        {
+                            var serverStatus = _serverManager.GetConnectionStatus(server.Id);
+                            serverStatus.UserCancelledMfa = true;
+                            AppLogger.Info("Collector", $"  [{server.DisplayName}] MFA authentication cancelled by user");
+                            _logger?.LogInformation("MFA authentication cancelled by user for server '{DisplayName}' - flagging to abort other pending connections", server.DisplayName);
+                        }
+                        throw;
+                    }
+                }, _logger, $"Connect to {server.DisplayName}", cancellationToken: cancellationToken);
+            }
+            finally
             {
-                var connection = new SqlConnection(connStr);
-                await connection.OpenAsync(cancellationToken);
-                return connection;
-            }, _logger, $"Connect to {server.DisplayName}", cancellationToken: cancellationToken);
+                s_connectionThrottle.Release();
+            }
         }
         finally
         {
-            s_connectionThrottle.Release();
+            // Release MFA lock if we acquired it
+            if (mfaLockAcquired)
+            {
+                s_mfaAuthLock.Release();
+            }
         }
     }
 

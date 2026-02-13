@@ -75,9 +75,21 @@ jobs:
 
           Compress-Archive -Path 'publish/Installer/*' -DestinationPath "releases/PerformanceMonitorInstaller-$version.zip" -Force
 
+      - name: Generate checksums
+        if: github.event_name == 'release'
+        shell: pwsh
+        run: |
+          $checksums = Get-ChildItem releases/*.zip | ForEach-Object {
+            $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
+            "$hash  $($_.Name)"
+          }
+          $checksums | Out-File -FilePath releases/SHA256SUMS.txt -Encoding utf8
+          Write-Host "Checksums:"
+          $checksums | ForEach-Object { Write-Host $_ }
+
       - name: Upload release assets
         if: github.event_name == 'release'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload ${{ github.event.release.tag_name }} releases/*.zip --clobber
+          gh release upload ${{ github.event.release.tag_name }} releases/*.zip releases/SHA256SUMS.txt --clobber

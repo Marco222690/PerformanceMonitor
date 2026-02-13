@@ -104,11 +104,21 @@ public class ServerManager
             SaveServers();
         }
 
-        if (!server.UseWindowsAuth && !string.IsNullOrEmpty(username) && password != null)
+        // Save credentials based on authentication type
+        if (server.AuthenticationType == "SqlServer" && !string.IsNullOrEmpty(username) && password != null)
         {
+            // For SQL Server auth, save both username and password
             if (!_credentialService.SaveCredential(server.Id, username, password))
             {
                 throw new InvalidOperationException("Failed to save credentials to Windows Credential Manager");
+            }
+        }
+        else if (server.AuthenticationType == "EntraMFA" && !string.IsNullOrEmpty(username))
+        {
+            // For MFA auth, save username as account hint (password can be empty)
+            if (!_credentialService.SaveCredential(server.Id, username, string.Empty))
+            {
+                throw new InvalidOperationException("Failed to save account hint to Windows Credential Manager");
             }
         }
 
@@ -136,15 +146,26 @@ public class ServerManager
             SaveServers();
         }
 
-        if (!server.UseWindowsAuth && !string.IsNullOrEmpty(username) && password != null)
+        // Update credentials based on authentication type
+        if (server.AuthenticationType == "SqlServer" && !string.IsNullOrEmpty(username) && password != null)
         {
+            // For SQL Server auth, update both username and password
             if (!_credentialService.UpdateCredential(server.Id, username, password))
             {
                 throw new InvalidOperationException("Failed to update credentials in Windows Credential Manager");
             }
         }
-        else if (server.UseWindowsAuth)
+        else if (server.AuthenticationType == "EntraMFA" && !string.IsNullOrEmpty(username))
         {
+            // For MFA auth, update username as account hint (password can be empty)
+            if (!_credentialService.UpdateCredential(server.Id, username, string.Empty))
+            {
+                throw new InvalidOperationException("Failed to update account hint in Windows Credential Manager");
+            }
+        }
+        else if (server.AuthenticationType == "Windows")
+        {
+            // For Windows auth, remove any stored credentials
             _credentialService.DeleteCredential(server.Id);
         }
 

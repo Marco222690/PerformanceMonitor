@@ -19,6 +19,12 @@ public class ServerConnection
     public string ServerName { get; set; } = string.Empty;
     public string DisplayName { get; set; } = string.Empty;
     public bool UseWindowsAuth { get; set; } = true;
+    
+    /// <summary>
+    /// Authentication type: "Windows", "SqlServer", or "EntraMFA"
+    /// </summary>
+    public string AuthenticationType { get; set; } = "Windows";
+    
     public string? Description { get; set; }
     public DateTime CreatedDate { get; set; } = DateTime.Now;
     public DateTime LastConnected { get; set; } = DateTime.Now;
@@ -48,7 +54,12 @@ public class ServerConnection
     /// Display-only property for showing authentication type in UI.
     /// </summary>
     [JsonIgnore]
-    public string AuthenticationDisplay => UseWindowsAuth ? "Windows" : "SQL Server";
+    public string AuthenticationDisplay => AuthenticationType switch
+    {
+        "EntraMFA" => "Microsoft Entra MFA",
+        "SqlServer" => "SQL Server",
+        _ => "Windows"
+    };
 
     /// <summary>
     /// Display-only property for showing status in UI.
@@ -65,7 +76,7 @@ public class ServerConnection
         string? username = null;
         string? password = null;
 
-        if (!UseWindowsAuth)
+        if (AuthenticationType == "SqlServer")
         {
             var cred = credentialService.GetCredential(Id);
             if (cred.HasValue)
@@ -102,15 +113,26 @@ public class ServerConnection
             _ => SqlConnectionEncryptOption.Optional
         };
 
-        if (UseWindowsAuth)
+        if (AuthenticationType == "Windows")
         {
             builder.IntegratedSecurity = true;
         }
-        else
+        else if (AuthenticationType == "SqlServer")
         {
             builder.IntegratedSecurity = false;
             builder.UserID = username ?? string.Empty;
             builder.Password = password ?? string.Empty;
+        }
+        else if (AuthenticationType == "EntraMFA")
+        {
+            // Microsoft Entra MFA (Azure AD Interactive)
+            builder.IntegratedSecurity = false;
+            builder.Authentication = SqlAuthenticationMethod.ActiveDirectoryInteractive;
+            // Optionally set UserID for account hint (email/UPN)
+            if (!string.IsNullOrWhiteSpace(username))
+            {
+                builder.UserID = username;
+            }
         }
 
         return builder.ConnectionString;
@@ -121,7 +143,7 @@ public class ServerConnection
     /// </summary>
     public bool HasStoredCredentials(CredentialService credentialService)
     {
-        if (UseWindowsAuth)
+        if (AuthenticationType == "Windows" || AuthenticationType == "EntraMFA")
         {
             return true;
         }

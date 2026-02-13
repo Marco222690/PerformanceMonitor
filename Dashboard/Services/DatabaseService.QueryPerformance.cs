@@ -568,6 +568,7 @@ namespace PerformanceMonitorDashboard.Services
                             FROM report.query_snapshots AS qs
                             WHERE qs.collection_time >= @from_date
                             AND   qs.collection_time <= @to_date
+                            AND   qs.sql_text NOT LIKE N'WAITFOR%'
                             ORDER BY
                                 qs.collection_time DESC,
                                 qs.session_id;";
@@ -609,6 +610,7 @@ namespace PerformanceMonitorDashboard.Services
                                 /* query_plan fetched on-demand via GetQuerySnapshotPlanAsync */
                             FROM report.query_snapshots AS qs
                             WHERE qs.collection_time >= DATEADD(HOUR, @hours_back, SYSDATETIME())
+                            AND   qs.sql_text NOT LIKE N'WAITFOR%'
                             ORDER BY
                                 qs.collection_time DESC,
                                 qs.session_id;";

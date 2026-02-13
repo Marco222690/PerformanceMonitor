@@ -152,7 +152,7 @@ public class ServerSummaryItem
         DeadlockCount > 0 ? "#F44336" :
         BlockingCount > 0 ? "#FF9800" :
         CpuPercent >= 80 ? "#FF9800" :
-        "#555555");
+        "#2a2d35");
 
     private static SolidColorBrush MakeBrush(string hex)
     {

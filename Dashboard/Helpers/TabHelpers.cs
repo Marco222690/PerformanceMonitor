@@ -33,19 +33,19 @@ namespace PerformanceMonitorDashboard.Helpers
         /// </summary>
         public static void ApplyDarkModeToChart(WpfPlot chart)
         {
-            // Dark theme colors matching Darling Data brand
-            var darkBackground = ScottPlot.Color.FromHex("#333333");
-            var darkerBackground = ScottPlot.Color.FromHex("#252525");
-            var textColor = ScottPlot.Color.FromHex("#E0E0E0");
-            var gridColor = ScottPlot.Color.FromHex("#444444");
+            // Grafana-inspired dark theme colors
+            var darkBackground = ScottPlot.Color.FromHex("#22252b");
+            var darkerBackground = ScottPlot.Color.FromHex("#111217");
+            var textColor = ScottPlot.Color.FromHex("#9DA5B4");
+            var gridColor = ScottPlot.Colors.White.WithAlpha(20);
 
             chart.Plot.FigureBackground.Color = darkBackground;
             chart.Plot.DataBackground.Color = darkerBackground;
             chart.Plot.Axes.Color(textColor);
             chart.Plot.Grid.MajorLineColor = gridColor;
             chart.Plot.Legend.BackgroundColor = darkBackground;
-            chart.Plot.Legend.FontColor = textColor;
-            chart.Plot.Legend.OutlineColor = gridColor;
+            chart.Plot.Legend.FontColor = ScottPlot.Color.FromHex("#E4E6EB");
+            chart.Plot.Legend.OutlineColor = ScottPlot.Color.FromHex("#2a2d35");
             chart.Plot.Legend.Alignment = ScottPlot.Alignment.LowerCenter;
             chart.Plot.Legend.Orientation = ScottPlot.Orientation.Horizontal;
             chart.Plot.Axes.Margins(bottom: 0); // No bottom margin - SetChartYLimitsWithLegendPadding handles Y-axis
@@ -63,7 +63,7 @@ namespace PerformanceMonitorDashboard.Helpers
         /// </summary>
         public static void ReapplyAxisColors(WpfPlot chart)
         {
-            var textColor = ScottPlot.Color.FromHex("#E0E0E0");
+            var textColor = ScottPlot.Color.FromHex("#9DA5B4");
             chart.Plot.Axes.Bottom.TickLabelStyle.ForeColor = textColor;
             chart.Plot.Axes.Left.TickLabelStyle.ForeColor = textColor;
             chart.Plot.Axes.Bottom.Label.ForeColor = textColor;
@@ -124,15 +124,15 @@ namespace PerformanceMonitorDashboard.Helpers
         /// </summary>
         public static void ApplyDarkThemeToCalendar(System.Windows.Controls.Calendar calendar)
         {
-            var darkBg = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#252525"));
-            var lightBg = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#404040"));
-            var whiteFg = new SolidColorBrush(Colors.White);
-            var mutedFg = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#858585"));
+            var darkBg = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#111217"));
+            var lightBg = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#22252b"));
+            var whiteFg = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E4E6EB"));
+            var mutedFg = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6B7280"));
             var accentBg = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2eaef1"));
 
             calendar.Background = darkBg;
             calendar.Foreground = whiteFg;
-            calendar.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#555555"));
+            calendar.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2a2d35"));
 
             // Apply to all child controls recursively
             ApplyDarkThemeRecursively(calendar, darkBg, lightBg, whiteFg, mutedFg);

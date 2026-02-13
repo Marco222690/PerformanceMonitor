@@ -246,7 +246,7 @@ namespace PerformanceMonitorDashboard
             {
                 AutoRefreshToggle.IsChecked = false;
                 AutoRefreshToggle.Content = "Auto-Refresh: Off";
-                AutoRefreshToggle.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#555555")); // Gray when inactive
+                AutoRefreshToggle.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2a2d35")); // Gray when inactive
             }
         }
 
@@ -358,7 +358,7 @@ namespace PerformanceMonitorDashboard
                 _autoRefreshTimer?.Stop();
                 _autoRefreshTimer = null;
                 AutoRefreshToggle.Content = "Auto-Refresh: Off";
-                AutoRefreshToggle.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#555555")); // Gray when inactive
+                AutoRefreshToggle.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2a2d35")); // Gray when inactive
             }
         }
 

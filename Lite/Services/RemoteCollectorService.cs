@@ -518,6 +518,32 @@ public partial class RemoteCollectorService
     }
 
     /// <summary>
+    /// Safely converts a SQL Server float/real value to decimal.
+    /// Returns 0 for Infinity, NaN, or values outside decimal range.
+    /// </summary>
+    protected static decimal SafeToDecimal(object value)
+    {
+        try
+        {
+            if (value is double d)
+            {
+                if (double.IsInfinity(d) || double.IsNaN(d))
+                    return 0m;
+            }
+            else if (value is float f)
+            {
+                if (float.IsInfinity(f) || float.IsNaN(f))
+                    return 0m;
+            }
+            return Convert.ToDecimal(value);
+        }
+        catch (OverflowException)
+        {
+            return 0m;
+        }
+    }
+
+    /// <summary>
     /// Deterministic hash code for a string. .NET Core randomizes string.GetHashCode()
     /// per process, so we use a simple FNV-1a hash to get a stable value across restarts.
     /// </summary>

@@ -31,7 +31,8 @@ SELECT
     AVG(duration_ms) AS avg_duration_ms,
     MAX(CASE WHEN status = 'SUCCESS' THEN collection_time END) AS last_success_time,
     MAX(collection_time) AS last_run_time,
-    MAX(CASE WHEN status = 'ERROR' THEN error_message END) AS last_error
+    MAX(CASE WHEN status = 'ERROR' THEN error_message END) AS last_error,
+    MAX(CASE WHEN status = 'ERROR' THEN collection_time END) AS last_error_time
 FROM collection_log
 WHERE server_id = $1
 AND   collection_time >= $2
@@ -54,7 +55,8 @@ ORDER BY collector_name";
                 AvgDurationMs = reader.IsDBNull(4) ? 0 : ToDouble(reader.GetValue(4)),
                 LastSuccessTime = reader.IsDBNull(5) ? null : reader.GetDateTime(5),
                 LastRunTime = reader.IsDBNull(6) ? null : reader.GetDateTime(6),
-                LastError = reader.IsDBNull(7) ? null : reader.GetString(7)
+                LastError = reader.IsDBNull(7) ? null : reader.GetString(7),
+                LastErrorTime = reader.IsDBNull(8) ? null : reader.GetDateTime(8)
             });
         }
 
@@ -141,6 +143,7 @@ public class CollectorHealthRow
     public DateTime? LastSuccessTime { get; set; }
     public DateTime? LastRunTime { get; set; }
     public string? LastError { get; set; }
+    public DateTime? LastErrorTime { get; set; }
 
     public double FailureRatePercent => TotalRuns > 0 ? (double)ErrorCount / TotalRuns * 100 : 0;
     public double HoursSinceLastSuccess => LastSuccessTime.HasValue
@@ -170,5 +173,9 @@ public class CollectorHealthRow
     public string LastRunFormatted => LastRunTime.HasValue
         ? LastRunTime.Value.ToLocalTime().ToString("MM/dd HH:mm:ss")
         : "Never";
+
+    public string LastErrorFormatted => LastErrorTime.HasValue
+        ? LastErrorTime.Value.ToLocalTime().ToString("MM/dd HH:mm:ss")
+        : "";
 }
 

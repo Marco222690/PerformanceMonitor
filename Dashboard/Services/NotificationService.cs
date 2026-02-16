@@ -208,7 +208,7 @@ namespace PerformanceMonitorDashboard.Services
             // Trigger settings via the main window
             if (_mainWindow is MainWindow mainWin)
             {
-                var settingsWindow = new SettingsWindow { Owner = mainWin };
+                var settingsWindow = new SettingsWindow(_preferencesService) { Owner = mainWin };
                 settingsWindow.ShowDialog();
             }
         }

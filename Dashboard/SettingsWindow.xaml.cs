@@ -11,20 +11,21 @@ using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using PerformanceMonitorDashboard.Helpers;
+using PerformanceMonitorDashboard.Interfaces;
 using PerformanceMonitorDashboard.Services;
 
 namespace PerformanceMonitorDashboard
 {
     public partial class SettingsWindow : Window
     {
-        private readonly UserPreferencesService _preferencesService;
+        private readonly IUserPreferencesService _preferencesService;
         private bool _isLoading = true;
 
-        public SettingsWindow()
+        public SettingsWindow(IUserPreferencesService preferencesService)
         {
             InitializeComponent();
 
-            _preferencesService = new UserPreferencesService();
+            _preferencesService = preferencesService;
             LoadSettings();
             _isLoading = false;
         }
@@ -495,7 +496,7 @@ namespace PerformanceMonitorDashboard
 
             try
             {
-                var emailService = EmailAlertService.Current ?? new EmailAlertService(_preferencesService);
+                var emailService = EmailAlertService.Current ?? new EmailAlertService((UserPreferencesService)_preferencesService);
                 var error = await emailService.SendTestEmailAsync(testPrefs);
 
                 if (error == null)

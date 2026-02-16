@@ -56,6 +56,9 @@ public partial class App : Application
     public static bool AlertDeadlockEnabled { get; set; } = true;
     public static int AlertDeadlockThreshold { get; set; } = 1;
 
+    /* System tray settings */
+    public static bool MinimizeToTray { get; set; } = true;
+
     /* Update check settings */
     public static bool CheckForUpdatesOnStartup { get; set; } = true;
 
@@ -198,6 +201,9 @@ public partial class App : Application
             if (root.TryGetProperty("alert_blocking_threshold", out v)) AlertBlockingThreshold = v.GetInt32();
             if (root.TryGetProperty("alert_deadlock_enabled", out v)) AlertDeadlockEnabled = v.GetBoolean();
             if (root.TryGetProperty("alert_deadlock_threshold", out v)) AlertDeadlockThreshold = v.GetInt32();
+
+            /* System tray settings */
+            if (root.TryGetProperty("minimize_to_tray", out v)) MinimizeToTray = v.GetBoolean();
 
             /* Update check settings */
             if (root.TryGetProperty("check_for_updates_on_startup", out v)) CheckForUpdatesOnStartup = v.GetBoolean();

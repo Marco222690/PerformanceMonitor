@@ -221,6 +221,7 @@ public partial class SettingsWindow : Window
 
     private void LoadAlertSettings()
     {
+        MinimizeToTrayCheckBox.IsChecked = App.MinimizeToTray;
         AlertsEnabledCheckBox.IsChecked = App.AlertsEnabled;
         NotifyConnectionCheckBox.IsChecked = App.NotifyConnectionChanges;
         AlertCpuCheckBox.IsChecked = App.AlertCpuEnabled;
@@ -234,6 +235,7 @@ public partial class SettingsWindow : Window
 
     private void SaveAlertSettings()
     {
+        App.MinimizeToTray = MinimizeToTrayCheckBox.IsChecked == true;
         App.AlertsEnabled = AlertsEnabledCheckBox.IsChecked == true;
         App.NotifyConnectionChanges = NotifyConnectionCheckBox.IsChecked == true;
         App.AlertCpuEnabled = AlertCpuCheckBox.IsChecked == true;
@@ -260,6 +262,7 @@ public partial class SettingsWindow : Window
                 root = new JsonObject();
             }
 
+            root["minimize_to_tray"] = App.MinimizeToTray;
             root["alerts_enabled"] = App.AlertsEnabled;
             root["notify_connection_changes"] = App.NotifyConnectionChanges;
             root["alert_cpu_enabled"] = App.AlertCpuEnabled;

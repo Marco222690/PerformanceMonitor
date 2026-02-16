@@ -185,7 +185,7 @@ namespace PerformanceMonitorDashboard
 
         private void InitializeNotificationService()
         {
-            _notificationService = new NotificationService(this);
+            _notificationService = new NotificationService(this, _preferencesService);
             _notificationService.Initialize();
         }
 
@@ -756,7 +756,7 @@ namespace PerformanceMonitorDashboard
 
         private void Settings_Click(object sender, RoutedEventArgs e)
         {
-            var dialog = new SettingsWindow();
+            var dialog = new SettingsWindow(_preferencesService);
             dialog.Owner = this;
             if (dialog.ShowDialog() == true)
             {

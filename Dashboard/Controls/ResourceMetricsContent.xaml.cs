@@ -1880,6 +1880,12 @@ namespace PerformanceMonitorDashboard.Controls
             await UpdateWaitStatsDetailChartAsync();
         }
 
+        private void WaitStatsMetric_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_allWaitStatsDetailData != null)
+                LoadWaitStatsDetailChart(_allWaitStatsDetailData, _waitStatsDetailHoursBack, _waitStatsDetailFromDate, _waitStatsDetailToDate);
+        }
+
         private void RefreshWaitTypeListOrder()
         {
             if (_waitTypeItems == null) return;
@@ -2050,9 +2056,12 @@ namespace PerformanceMonitorDashboard.Controls
                 WaitStatsDetailChart.Plot.Axes.Remove(existingWaitStatsPanel);
                 _legendPanels[WaitStatsDetailChart] = null;
             }
+            bool useAvgPerWait = WaitStatsMetricCombo?.SelectedIndex == 1;
+
             WaitStatsDetailChart.Plot.Clear();
             TabHelpers.ApplyDarkModeToChart(WaitStatsDetailChart);
             _waitStatsHover?.Clear();
+            if (_waitStatsHover != null) _waitStatsHover.Unit = useAvgPerWait ? "ms/wait" : "ms/sec";
 
             if (data == null || data.Count == 0 || _waitTypeItems == null)
             {
@@ -2067,7 +2076,6 @@ namespace PerformanceMonitorDashboard.Controls
                 WaitStatsDetailChart.Refresh();
                 return;
             }
-
             var colors = TabHelpers.ChartColors;
 
             // Get all time points across all wait types for gap filling
@@ -2080,7 +2088,8 @@ namespace PerformanceMonitorDashboard.Controls
                     .GroupBy(d => d.CollectionTime)
                     .Select(g => new {
                         CollectionTime = g.Key,
-                        WaitTimeMsPerSecond = g.Sum(x => x.WaitTimeMsPerSecond)
+                        WaitTimeMsPerSecond = g.Sum(x => x.WaitTimeMsPerSecond),
+                        AvgMsPerWait = g.Average(x => x.AvgMsPerWait)
                     })
                     .OrderBy(d => d.CollectionTime)
                     .ToList();
@@ -2088,7 +2097,9 @@ namespace PerformanceMonitorDashboard.Controls
                 if (waitTypeData.Count >= 1)
                 {
                     var timePoints = waitTypeData.Select(d => d.CollectionTime);
-                    var values = waitTypeData.Select(d => (double)d.WaitTimeMsPerSecond);
+                    var values = useAvgPerWait
+                        ? waitTypeData.Select(d => (double)d.AvgMsPerWait)
+                        : waitTypeData.Select(d => (double)d.WaitTimeMsPerSecond);
                     var (xs, ys) = TabHelpers.FillTimeSeriesGaps(timePoints, values);
 
                     var scatter = WaitStatsDetailChart.Plot.Add.Scatter(xs, ys);
@@ -2124,7 +2135,7 @@ namespace PerformanceMonitorDashboard.Controls
             WaitStatsDetailChart.Plot.Axes.DateTimeTicksBottom();
             WaitStatsDetailChart.Plot.Axes.SetLimitsX(xMin, xMax);
             TabHelpers.SetChartYLimitsWithLegendPadding(WaitStatsDetailChart);
-            WaitStatsDetailChart.Plot.YLabel("Wait Time (ms/sec)");
+            WaitStatsDetailChart.Plot.YLabel(useAvgPerWait ? "Avg Wait Time (ms/wait)" : "Wait Time (ms/sec)");
             WaitStatsDetailChart.Plot.HideGrid();
             TabHelpers.LockChartVerticalAxis(WaitStatsDetailChart);
             WaitStatsDetailChart.Refresh();

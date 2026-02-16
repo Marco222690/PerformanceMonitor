@@ -145,7 +145,20 @@
                         </Grid>
                     </Border>
 
-                    <ScottPlot:WpfPlot Grid.Column="1" x:Name="WaitStatsChart"/>
+                    <Grid Grid.Column="1">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="8,4,0,0">
+                            <TextBlock Text="Metric:" VerticalAlignment="Center" Margin="0,0,6,0" FontSize="11"/>
+                            <ComboBox x:Name="WaitStatsMetricCombo" SelectedIndex="0" SelectionChanged="WaitStatsMetric_SelectionChanged" FontSize="11" Padding="4,2">
+                                <ComboBoxItem Content="Wait Time (ms/sec)"/>
+                                <ComboBoxItem Content="Avg Wait Time (ms/wait)"/>
+                            </ComboBox>
+                        </StackPanel>
+                        <ScottPlot:WpfPlot Grid.Row="1" x:Name="WaitStatsChart"/>
+                    </Grid>
                 </Grid>
             </TabItem>
 

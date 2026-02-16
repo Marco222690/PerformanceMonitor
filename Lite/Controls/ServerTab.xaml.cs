@@ -1139,6 +1139,11 @@ public partial class ServerTab : UserControl
         _ = UpdateWaitStatsChartFromPickerAsync();
     }
 
+    private void WaitStatsMetric_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        _ = UpdateWaitStatsChartFromPickerAsync();
+    }
+
     private void WaitType_CheckChanged(object sender, RoutedEventArgs e)
     {
         if (_isUpdatingWaitTypeSelection) return;
@@ -1157,6 +1162,9 @@ public partial class ServerTab : UserControl
             _waitStatsHover?.Clear();
 
             if (selected.Count == 0) { WaitStatsChart.Refresh(); return; }
+
+            bool useAvgPerWait = WaitStatsMetricCombo?.SelectedIndex == 1;
+            if (_waitStatsHover != null) _waitStatsHover.Unit = useAvgPerWait ? "ms/wait" : "ms/sec";
 
             var hoursBack = GetHoursBack();
             DateTime? fromDate = null;
@@ -1179,14 +1187,16 @@ public partial class ServerTab : UserControl
                 if (trend.Count == 0) continue;
 
                 var times = trend.Select(t => t.CollectionTime.AddMinutes(UtcOffsetMinutes).ToOADate()).ToArray();
-                var waitTime = trend.Select(t => t.WaitTimeMsPerSecond).ToArray();
+                var values = useAvgPerWait
+                    ? trend.Select(t => t.AvgMsPerWait).ToArray()
+                    : trend.Select(t => t.WaitTimeMsPerSecond).ToArray();
 
-                var plot = WaitStatsChart.Plot.Add.Scatter(times, waitTime);
+                var plot = WaitStatsChart.Plot.Add.Scatter(times, values);
                 plot.LegendText = selected[i].DisplayName;
                 plot.Color = ScottPlot.Color.FromHex(SeriesColors[i % SeriesColors.Length]);
                 _waitStatsHover?.Add(plot, selected[i].DisplayName);
 
-                if (waitTime.Length > 0) globalMax = Math.Max(globalMax, waitTime.Max());
+                if (values.Length > 0) globalMax = Math.Max(globalMax, values.Max());
             }
 
             WaitStatsChart.Plot.Axes.DateTimeTicksBottom();
@@ -1203,7 +1213,7 @@ public partial class ServerTab : UserControl
             }
             WaitStatsChart.Plot.Axes.SetLimitsX(rangeStart.ToOADate(), rangeEnd.ToOADate());
             ReapplyAxisColors(WaitStatsChart);
-            WaitStatsChart.Plot.YLabel("Wait Time (ms/sec)");
+            WaitStatsChart.Plot.YLabel(useAvgPerWait ? "Avg Wait Time (ms/wait)" : "Wait Time (ms/sec)");
             SetChartYLimitsWithLegendPadding(WaitStatsChart, 0, globalMax > 0 ? globalMax : 100);
             ShowChartLegend(WaitStatsChart);
             WaitStatsChart.Refresh();

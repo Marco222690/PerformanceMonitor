@@ -112,6 +112,7 @@ WITH raw AS
         collection_time,
         delta_wait_time_ms,
         delta_signal_wait_time_ms,
+        delta_waiting_tasks,
         date_diff('second', LAG(collection_time) OVER (ORDER BY collection_time), collection_time) AS interval_seconds
     FROM wait_stats
     WHERE server_id = $1
@@ -122,7 +123,8 @@ WITH raw AS
 SELECT
     collection_time,
     CASE WHEN interval_seconds > 0 THEN CAST(delta_wait_time_ms AS DOUBLE) / interval_seconds ELSE 0 END AS wait_time_ms_per_second,
-    CASE WHEN interval_seconds > 0 THEN CAST(delta_signal_wait_time_ms AS DOUBLE) / interval_seconds ELSE 0 END AS signal_wait_time_ms_per_second
+    CASE WHEN interval_seconds > 0 THEN CAST(delta_signal_wait_time_ms AS DOUBLE) / interval_seconds ELSE 0 END AS signal_wait_time_ms_per_second,
+    CASE WHEN delta_waiting_tasks > 0 THEN CAST(delta_wait_time_ms AS DOUBLE) / delta_waiting_tasks ELSE 0 END AS avg_ms_per_wait
 FROM raw
 ORDER BY collection_time";
 
@@ -139,7 +141,8 @@ ORDER BY collection_time";
             {
                 CollectionTime = reader.GetDateTime(0),
                 WaitTimeMsPerSecond = reader.IsDBNull(1) ? 0 : reader.GetDouble(1),
-                SignalWaitTimeMsPerSecond = reader.IsDBNull(2) ? 0 : reader.GetDouble(2)
+                SignalWaitTimeMsPerSecond = reader.IsDBNull(2) ? 0 : reader.GetDouble(2),
+                AvgMsPerWait = reader.IsDBNull(3) ? 0 : reader.GetDouble(3)
             });
         }
 
@@ -155,6 +158,8 @@ public class WaitStatsRow
     public long TotalSignalWaitTimeMs { get; set; }
     public long ResourceWaitTimeMs => TotalWaitTimeMs - TotalSignalWaitTimeMs;
     public long SampleCount { get; set; }
+    public double AvgWaitMsPerTask => TotalWaitingTasks > 0 ? (double)TotalWaitTimeMs / TotalWaitingTasks : 0;
+    public string AvgWaitMsFormatted => AvgWaitMsPerTask < 0.1 ? "< 0.1 ms" : $"{AvgWaitMsPerTask:F1} ms";
     public string TotalWaitTimeFormatted => FormatMs(TotalWaitTimeMs);
     public string SignalWaitTimeFormatted => FormatMs(TotalSignalWaitTimeMs);
     public string ResourceWaitTimeFormatted => FormatMs(ResourceWaitTimeMs);
@@ -181,4 +186,5 @@ public class WaitStatsTrendPoint
     public DateTime CollectionTime { get; set; }
     public double WaitTimeMsPerSecond { get; set; }
     public double SignalWaitTimeMsPerSecond { get; set; }
+    public double AvgMsPerWait { get; set; }
 }

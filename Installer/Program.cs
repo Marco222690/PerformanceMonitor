@@ -84,6 +84,7 @@ namespace PerformanceMonitorInstaller
             */
             bool automatedMode = args.Length > 0;
             bool reinstallMode = args.Any(a => a.Equals("--reinstall", StringComparison.OrdinalIgnoreCase));
+            bool resetSchedule = args.Any(a => a.Equals("--reset-schedule", StringComparison.OrdinalIgnoreCase));
             bool trustCert = args.Any(a => a.Equals("--trust-cert", StringComparison.OrdinalIgnoreCase));
 
             /*Parse encryption option (default: Mandatory)*/
@@ -103,6 +104,7 @@ namespace PerformanceMonitorInstaller
             /*Filter out option flags to get positional arguments*/
             var filteredArgs = args
                 .Where(a => !a.Equals("--reinstall", StringComparison.OrdinalIgnoreCase))
+                .Where(a => !a.Equals("--reset-schedule", StringComparison.OrdinalIgnoreCase))
                 .Where(a => !a.Equals("--trust-cert", StringComparison.OrdinalIgnoreCase))
                 .Where(a => !a.StartsWith("--encrypt=", StringComparison.OrdinalIgnoreCase))
                 .ToArray();
@@ -167,6 +169,7 @@ namespace PerformanceMonitorInstaller
                     Console.WriteLine();
                     Console.WriteLine("Options:");
                     Console.WriteLine("  --reinstall          Drop existing database and perform clean install");
+                    Console.WriteLine("  --reset-schedule     Reset collection schedule to recommended defaults");
                     Console.WriteLine("  --encrypt=<level>    Connection encryption: optional (default), mandatory, strict");
                     Console.WriteLine("  --trust-cert         Trust server certificate without validation (default: require valid cert)");
                     return ExitCodes.InvalidArguments;
@@ -609,6 +612,16 @@ END";
                     try
                     {
                         string sqlContent = await File.ReadAllTextAsync(sqlFile);
+
+                        /*
+                        Reset schedule to defaults if requested — truncate before the
+                        INSERT...WHERE NOT EXISTS re-populates with current recommended values
+                        */
+                        if (resetSchedule && fileName.StartsWith("04_", StringComparison.Ordinal))
+                        {
+                            sqlContent = "TRUNCATE TABLE config.collection_schedule;\nGO\n" + sqlContent;
+                            Console.Write("(resetting schedule) ");
+                        }
 
                         /*
                         Remove SQLCMD directives (:r includes) as we're executing files directly

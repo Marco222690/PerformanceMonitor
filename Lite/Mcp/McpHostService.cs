@@ -52,7 +52,7 @@ public sealed class McpHostService : BackgroundService
                     options.ServerInfo = new()
                     {
                         Name = "PerformanceMonitorLite",
-                        Version = "1.1.0"
+                        Version = "1.2.0"
                     };
                     options.ServerInstructions = McpInstructions.Text;
                 })

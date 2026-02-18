@@ -314,7 +314,9 @@
                     </DataGridTemplateColumn>
                 </DataGrid.Columns>
             </DataGrid>
-            <TextBlock x:Name="ActiveQueriesNoDataMessage" Style="{StaticResource NoDataMessage}"/>
+            <TextBlock x:Name="ActiveQueriesNoDataMessage" Style="{StaticResource EmptyStateMessage}"
+                       Text="No active queries found"/>
+            <local:LoadingOverlay x:Name="ActiveQueriesLoading"/>
             </Grid>
         </TabItem>
 
@@ -585,7 +587,9 @@
                     </DataGridTextColumn>
                 </DataGrid.Columns>
             </DataGrid>
-            <TextBlock x:Name="QueryStatsNoDataMessage" Style="{StaticResource NoDataMessage}"/>
+            <TextBlock x:Name="QueryStatsNoDataMessage" Style="{StaticResource EmptyStateMessage}"
+                       Text="No query statistics in selected time range"/>
+            <local:LoadingOverlay x:Name="QueryStatsLoading"/>
             </Grid>
         </TabItem>
 

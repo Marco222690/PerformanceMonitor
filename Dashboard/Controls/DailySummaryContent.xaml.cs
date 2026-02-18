@@ -79,6 +79,13 @@ namespace PerformanceMonitorDashboard.Controls
 
             try
             {
+                // Only show loading overlay on initial load (no existing data)
+                if (DailySummaryDataGrid.ItemsSource == null)
+                {
+                    DailySummaryLoading.IsLoading = true;
+                    DailySummaryNoDataMessage.Visibility = Visibility.Collapsed;
+                }
+
                 var data = await _databaseService.GetDailySummaryAsync(_dailySummaryDate);
 
                 // Store unfiltered data and reset filters when new data is loaded
@@ -99,6 +106,10 @@ namespace PerformanceMonitorDashboard.Controls
             catch (Exception ex)
             {
                 Logger.Error($"Error loading daily summary: {ex.Message}");
+            }
+            finally
+            {
+                DailySummaryLoading.IsLoading = false;
             }
         }
 

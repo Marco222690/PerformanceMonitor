@@ -157,6 +157,15 @@
         <Setter Property="Visibility" Value="Collapsed"/>
     </Style>
 
+    <!-- Empty State Message Style (context-specific text set per usage) -->
+    <Style x:Key="EmptyStateMessage" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{StaticResource ForegroundMutedBrush}"/>
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="HorizontalAlignment" Value="Center"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Visibility" Value="Collapsed"/>
+    </Style>
+
     <!-- Alert Badge Styles -->
     <Style x:Key="AlertBadge" TargetType="Border">
         <Setter Property="Background" Value="#D97706"/>

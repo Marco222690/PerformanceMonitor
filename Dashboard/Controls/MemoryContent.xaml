@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:ScottPlot="clr-namespace:ScottPlot.WPF;assembly=ScottPlot.WPF"
+             xmlns:controls="clr-namespace:PerformanceMonitorDashboard.Controls"
              mc:Ignorable="d"
              d:DesignHeight="600" d:DesignWidth="1200">
     <UserControl.Resources>
@@ -90,7 +91,9 @@
                             <TextBlock x:Name="MemoryGrantsForcedText" Text="0" Foreground="{DynamicResource ForegroundBrush}" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Border>
-                    <TextBlock x:Name="MemoryGrantsNoDataMessage" Grid.Row="1" Style="{StaticResource NoDataMessage}"/>
+                    <TextBlock x:Name="MemoryGrantsNoDataMessage" Grid.Row="1" Style="{StaticResource EmptyStateMessage}"
+                               Text="No memory grant data in selected time range"/>
+                    <controls:LoadingOverlay x:Name="MemoryGrantsLoading" Grid.Row="1"/>
                 </Grid>
             </Border>
         </TabItem>
@@ -116,7 +119,9 @@
                             <TextBlock x:Name="MemoryClerksTopText" Text="N/A" Foreground="{DynamicResource ForegroundBrush}" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Border>
-                    <TextBlock x:Name="MemoryClerksNoDataMessage" Grid.Row="1" Style="{StaticResource NoDataMessage}"/>
+                    <TextBlock x:Name="MemoryClerksNoDataMessage" Grid.Row="1" Style="{StaticResource EmptyStateMessage}"
+                               Text="No memory clerk data in selected time range"/>
+                    <controls:LoadingOverlay x:Name="MemoryClerksLoading" Grid.Row="1"/>
                 </Grid>
             </Border>
         </TabItem>

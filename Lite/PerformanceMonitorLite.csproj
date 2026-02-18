@@ -33,29 +33,29 @@
 
   <ItemGroup>
     <!-- DuckDB for local data storage -->
-    <PackageReference Include="DuckDB.NET.Data" Version="1.2.1" />
-    <PackageReference Include="DuckDB.NET.Bindings.Full" Version="1.2.1" />
+    <PackageReference Include="DuckDB.NET.Data" Version="1.4.4" />
+    <PackageReference Include="DuckDB.NET.Bindings.Full" Version="1.4.4" />
 
     <!-- SQL Server connectivity -->
-    <PackageReference Include="Microsoft.Data.SqlClient" Version="5.2.0" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.4" />
 
     <!-- Charting -->
-    <PackageReference Include="ScottPlot.WPF" Version="5.0.52" />
+    <PackageReference Include="ScottPlot.WPF" Version="5.1.57" />
 
     <!-- Windows Credential Manager for secure credential storage -->
     <PackageReference Include="CredentialManagement" Version="1.0.2" />
 
     <!-- Background service hosting -->
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.3" />
 
     <!-- Logging -->
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.3" />
 
     <!-- System tray -->
-    <PackageReference Include="Hardcodet.NotifyIcon.Wpf" Version="1.1.0" />
+    <PackageReference Include="Hardcodet.NotifyIcon.Wpf" Version="2.0.1" />
 
     <!-- JSON configuration -->
-    <PackageReference Include="System.Text.Json" Version="10.0.2" />
+    <PackageReference Include="System.Text.Json" Version="10.0.3" />
 
     <!-- MCP server for LLM tool access -->
     <PackageReference Include="ModelContextProtocol" Version="0.7.0-preview.1" />

@@ -256,6 +256,31 @@ namespace PerformanceMonitorDashboard
             LongRunningQueryThresholdTextBox.Text = "30";
             TempDbSpaceThresholdTextBox.Text = "80";
             LongRunningJobMultiplierTextBox.Text = "3";
+            UpdateAlertPreviewText();
+        }
+
+        private void UpdateAlertPreviewText()
+        {
+            var parts = new System.Collections.Generic.List<string>();
+
+            if (NotifyOnBlockingCheckBox.IsChecked == true)
+                parts.Add($"blocking > {BlockingThresholdTextBox.Text}s");
+            if (NotifyOnDeadlockCheckBox.IsChecked == true)
+                parts.Add($"deadlocks >= {DeadlockThresholdTextBox.Text}");
+            if (NotifyOnHighCpuCheckBox.IsChecked == true)
+                parts.Add($"CPU > {CpuThresholdTextBox.Text}%");
+            if (NotifyOnPoisonWaitsCheckBox.IsChecked == true)
+                parts.Add($"poison waits >= {PoisonWaitThresholdTextBox.Text}ms avg");
+            if (NotifyOnLongRunningQueriesCheckBox.IsChecked == true)
+                parts.Add($"queries > {LongRunningQueryThresholdTextBox.Text}min");
+            if (NotifyOnTempDbSpaceCheckBox.IsChecked == true)
+                parts.Add($"TempDB > {TempDbSpaceThresholdTextBox.Text}%");
+            if (NotifyOnLongRunningJobsCheckBox.IsChecked == true)
+                parts.Add($"jobs > {LongRunningJobMultiplierTextBox.Text}x avg");
+
+            AlertPreviewText.Text = parts.Count > 0
+                ? $"Will alert when: {string.Join(", ", parts)}"
+                : "No alerts enabled";
         }
 
         private void UpdateAlertNotificationStates()
@@ -275,6 +300,7 @@ namespace PerformanceMonitorDashboard
             TempDbSpaceThresholdTextBox.IsEnabled = notificationsEnabled && NotifyOnTempDbSpaceCheckBox.IsChecked == true;
             NotifyOnLongRunningJobsCheckBox.IsEnabled = notificationsEnabled;
             LongRunningJobMultiplierTextBox.IsEnabled = notificationsEnabled && NotifyOnLongRunningJobsCheckBox.IsChecked == true;
+            UpdateAlertPreviewText();
         }
 
         private void UpdateNotificationCheckboxStates()
@@ -561,6 +587,35 @@ namespace PerformanceMonitorDashboard
             SmtpFromTextBox.IsEnabled = enabled;
             SmtpRecipientsTextBox.IsEnabled = enabled;
             TestEmailButton.IsEnabled = enabled;
+            ValidateSmtpButton.IsEnabled = enabled;
+        }
+
+        private void ValidateSmtpButton_Click(object sender, RoutedEventArgs e)
+        {
+            var errors = new System.Collections.Generic.List<string>();
+
+            if (string.IsNullOrWhiteSpace(SmtpServerTextBox.Text))
+                errors.Add("SMTP server is required");
+            if (!int.TryParse(SmtpPortTextBox.Text, out var port) || port < 1 || port > 65535)
+                errors.Add("Port must be between 1 and 65535");
+            if (string.IsNullOrWhiteSpace(SmtpFromTextBox.Text))
+                errors.Add("From address is required");
+            else if (!SmtpFromTextBox.Text.Trim().Contains('@'))
+                errors.Add("From address must be a valid email");
+            if (string.IsNullOrWhiteSpace(SmtpRecipientsTextBox.Text))
+                errors.Add("At least one recipient is required");
+
+            if (errors.Count == 0)
+            {
+                TestEmailStatusText.Text = "Settings look good. Use 'Send Test Email' to verify delivery.";
+            }
+            else
+            {
+                TestEmailStatusText.Text = "";
+                MessageBox.Show(
+                    "SMTP configuration has issues:\n\n" + string.Join("\n", errors),
+                    "SMTP Validation", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
         }
 
         private async void TestEmailButton_Click(object sender, RoutedEventArgs e)

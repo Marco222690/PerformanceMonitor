@@ -205,6 +205,8 @@
                                          TextAlignment="Center"/>
                                 <TextBlock Text="x historical average" VerticalAlignment="Center"/>
                             </StackPanel>
+                            <TextBlock x:Name="AlertPreviewText" FontSize="11" FontStyle="Italic" Foreground="Gray"
+                                       TextWrapping="Wrap" Margin="0,12,0,0"/>
                         </StackPanel>
                     </StackPanel>
                 </ScrollViewer>
@@ -322,6 +324,8 @@
                             <StackPanel Grid.Row="6" Grid.Column="1" Orientation="Horizontal" Margin="0,4,0,0">
                                 <Button x:Name="TestEmailButton" Content="Send Test Email" Padding="10,3"
                                         Click="TestEmailButton_Click"/>
+                                <Button x:Name="ValidateSmtpButton" Content="Validate Settings" Padding="10,3" Margin="8,0,0,0"
+                                        Click="ValidateSmtpButton_Click"/>
                                 <TextBlock x:Name="TestEmailStatusText" FontStyle="Italic" Foreground="Gray"
                                            VerticalAlignment="Center" Margin="10,0,0,0" FontSize="11"/>
                             </StackPanel>

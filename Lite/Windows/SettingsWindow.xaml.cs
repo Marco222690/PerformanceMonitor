@@ -323,6 +323,31 @@ public partial class SettingsWindow : Window
         AlertLongRunningQueryThresholdBox.Text = "30";
         AlertTempDbSpaceThresholdBox.Text = "80";
         AlertLongRunningJobMultiplierBox.Text = "3";
+        UpdateAlertPreviewText();
+    }
+
+    private void UpdateAlertPreviewText()
+    {
+        var parts = new System.Collections.Generic.List<string>();
+
+        if (AlertCpuCheckBox.IsChecked == true)
+            parts.Add($"CPU > {AlertCpuThresholdBox.Text}%");
+        if (AlertBlockingCheckBox.IsChecked == true)
+            parts.Add($"blocking >= {AlertBlockingThresholdBox.Text}");
+        if (AlertDeadlockCheckBox.IsChecked == true)
+            parts.Add($"deadlocks >= {AlertDeadlockThresholdBox.Text}");
+        if (AlertPoisonWaitCheckBox.IsChecked == true)
+            parts.Add($"poison waits >= {AlertPoisonWaitThresholdBox.Text}ms avg");
+        if (AlertLongRunningQueryCheckBox.IsChecked == true)
+            parts.Add($"queries > {AlertLongRunningQueryThresholdBox.Text}min");
+        if (AlertTempDbSpaceCheckBox.IsChecked == true)
+            parts.Add($"TempDB > {AlertTempDbSpaceThresholdBox.Text}%");
+        if (AlertLongRunningJobCheckBox.IsChecked == true)
+            parts.Add($"jobs > {AlertLongRunningJobMultiplierBox.Text}x avg");
+
+        AlertPreviewText.Text = parts.Count > 0
+            ? $"Will alert when: {string.Join(", ", parts)}"
+            : "No alerts enabled";
     }
 
     private void UpdateAlertControlStates()
@@ -343,6 +368,7 @@ public partial class SettingsWindow : Window
         AlertTempDbSpaceThresholdBox.IsEnabled = enabled;
         AlertLongRunningJobCheckBox.IsEnabled = enabled;
         AlertLongRunningJobMultiplierBox.IsEnabled = enabled;
+        UpdateAlertPreviewText();
     }
 
     private void LoadSmtpSettings()
@@ -430,6 +456,35 @@ public partial class SettingsWindow : Window
         SmtpFromBox.IsEnabled = enabled;
         SmtpRecipientsBox.IsEnabled = enabled;
         TestEmailButton.IsEnabled = enabled;
+        ValidateSmtpButton.IsEnabled = enabled;
+    }
+
+    private void ValidateSmtpButton_Click(object sender, RoutedEventArgs e)
+    {
+        var errors = new System.Collections.Generic.List<string>();
+
+        if (string.IsNullOrWhiteSpace(SmtpServerBox.Text))
+            errors.Add("SMTP server is required");
+        if (!int.TryParse(SmtpPortBox.Text, out var port) || port < 1 || port > 65535)
+            errors.Add("Port must be between 1 and 65535");
+        if (string.IsNullOrWhiteSpace(SmtpFromBox.Text))
+            errors.Add("From address is required");
+        else if (!SmtpFromBox.Text.Trim().Contains('@'))
+            errors.Add("From address must be a valid email");
+        if (string.IsNullOrWhiteSpace(SmtpRecipientsBox.Text))
+            errors.Add("At least one recipient is required");
+
+        if (errors.Count == 0)
+        {
+            SmtpStatusText.Text = "Settings look good. Use 'Send Test Email' to verify delivery.";
+        }
+        else
+        {
+            SmtpStatusText.Text = "";
+            MessageBox.Show(
+                "SMTP configuration has issues:\n\n" + string.Join("\n", errors),
+                "SMTP Validation", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
     }
 
     private async void TestEmailButton_Click(object sender, RoutedEventArgs e)

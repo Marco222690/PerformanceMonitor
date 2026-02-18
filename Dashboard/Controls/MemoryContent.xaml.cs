@@ -383,6 +383,9 @@ namespace PerformanceMonitorDashboard.Controls
 
             try
             {
+                MemoryGrantsLoading.IsLoading = true;
+                MemoryGrantsNoDataMessage.Visibility = Visibility.Collapsed;
+
                 var data = await _databaseService.GetMemoryGrantStatsAsync(_memoryGrantsHoursBack, _memoryGrantsFromDate, _memoryGrantsToDate);
                 var dataList = data.ToList();
                 MemoryGrantsNoDataMessage.Visibility = dataList.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -391,6 +394,10 @@ namespace PerformanceMonitorDashboard.Controls
             catch (Exception ex)
             {
                 Logger.Error($"Error loading memory grants: {ex.Message}");
+            }
+            finally
+            {
+                MemoryGrantsLoading.IsLoading = false;
             }
         }
 
@@ -485,6 +492,9 @@ namespace PerformanceMonitorDashboard.Controls
 
             try
             {
+                MemoryClerksLoading.IsLoading = true;
+                MemoryClerksNoDataMessage.Visibility = Visibility.Collapsed;
+
                 var data = await _databaseService.GetMemoryClerksTopNAsync(5, _memoryClerksHoursBack, _memoryClerksFromDate, _memoryClerksToDate);
                 var dataList = data.ToList();
                 MemoryClerksNoDataMessage.Visibility = dataList.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -493,6 +503,10 @@ namespace PerformanceMonitorDashboard.Controls
             catch (Exception ex)
             {
                 Logger.Error($"Error loading memory clerks: {ex.Message}");
+            }
+            finally
+            {
+                MemoryClerksLoading.IsLoading = false;
             }
         }
 

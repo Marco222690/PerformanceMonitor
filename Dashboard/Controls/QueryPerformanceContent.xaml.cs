@@ -217,6 +217,9 @@ namespace PerformanceMonitorDashboard.Controls
 
                 if (_databaseService == null) return;
 
+                QueryStatsLoading.IsLoading = true;
+                QueryStatsNoDataMessage.Visibility = Visibility.Collapsed;
+
                 // Fetch grid data (summary views aggregated per query/procedure)
                 var queryStatsTask = _databaseService.GetQueryStatsAsync(_queryStatsHoursBack, _queryStatsFromDate, _queryStatsToDate);
                 var procStatsTask = _databaseService.GetProcedureStatsAsync(_procStatsHoursBack, _procStatsFromDate, _procStatsToDate);
@@ -262,6 +265,10 @@ namespace PerformanceMonitorDashboard.Controls
             catch (Exception ex)
             {
                 Logger.Error($"Error refreshing QueryPerformance data: {ex.Message}", ex);
+            }
+            finally
+            {
+                QueryStatsLoading.IsLoading = false;
             }
         }
 
@@ -367,7 +374,10 @@ namespace PerformanceMonitorDashboard.Controls
 
             try
             {
+                ActiveQueriesLoading.IsLoading = true;
+                ActiveQueriesNoDataMessage.Visibility = Visibility.Collapsed;
                 SetStatus("Loading active queries...");
+
                 var data = await _databaseService.GetQuerySnapshotsAsync(_activeQueriesHoursBack, _activeQueriesFromDate, _activeQueriesToDate);
                 ActiveQueriesDataGrid.ItemsSource = data;
                 ActiveQueriesNoDataMessage.Visibility = data.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -377,6 +387,10 @@ namespace PerformanceMonitorDashboard.Controls
             {
                 Logger.Error($"Error loading active queries: {ex.Message}");
                 SetStatus("Error loading active queries");
+            }
+            finally
+            {
+                ActiveQueriesLoading.IsLoading = false;
             }
         }
 

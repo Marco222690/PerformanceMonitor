@@ -35,36 +35,7 @@ namespace PerformanceMonitorDashboard
         public int UtcOffsetMinutes { get; }
 
         public DatabaseService DatabaseService => _databaseService;
-        // Fun AI-powered loading messages
-        private static readonly string[] _loadingMessages = new[]
-        {
-            "Reticulating splines...",
-            "Consulting the oracle...",
-            "Asking the database nicely...",
-            "Crunching numbers...",
-            "Thinking really hard...",
-            "Mulling it over...",
-            "Communing with SQL Server...",
-            "Summoning data spirits...",
-            "Decoding the matrix...",
-            "Interrogating indexes...",
-            "Parsing the void...",
-            "Calibrating flux capacitors...",
-            "Negotiating with stored procedures...",
-            "Convincing queries to run faster...",
-            "Herding cursors...",
-            "Massaging execution plans...",
-            "Whispering to wait stats...",
-            "Befriending buffer pools...",
-            "Coaxing data from disk...",
-            "Pondering performance..."
-        };
-        private static readonly Random _loadingRandom = Random.Shared;
-
-        private string GetLoadingMessage()
-        {
-            return _loadingMessages[_loadingRandom.Next(_loadingMessages.Length)];
-        }
+        private static string GetLoadingMessage() => LoadingMessages.GetRandom();
 
 
         private readonly UserPreferencesService _preferencesService;

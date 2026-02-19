@@ -29,8 +29,10 @@ public class DuckDbInitializer
 
     /// <summary>
     /// Gets the connection string for the DuckDB database.
+    /// Disables automatic WAL checkpoints to prevent 2-3s stop-the-world stalls
+    /// during collector writes. Manual CHECKPOINT runs between collection cycles instead.
     /// </summary>
-    public string ConnectionString => $"Data Source={_databasePath}";
+    public string ConnectionString => $"Data Source={_databasePath};checkpoint_threshold=1GB";
 
     /// <summary>
     /// Ensures the database exists and all tables are created.
@@ -406,6 +408,26 @@ public class DuckDbInitializer
     public DuckDBConnection CreateConnection()
     {
         return new DuckDBConnection(ConnectionString);
+    }
+
+    /// <summary>
+    /// Runs a manual WAL checkpoint. Call this between collection cycles
+    /// to flush the WAL during idle time instead of during collector writes.
+    /// </summary>
+    public async Task CheckpointAsync()
+    {
+        try
+        {
+            using var connection = CreateConnection();
+            await connection.OpenAsync();
+            using var command = connection.CreateCommand();
+            command.CommandText = "CHECKPOINT";
+            await command.ExecuteNonQueryAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(ex, "Manual checkpoint failed (non-critical)");
+        }
     }
 
     /// <summary>

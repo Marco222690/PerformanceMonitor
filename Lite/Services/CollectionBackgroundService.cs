@@ -85,6 +85,10 @@ public class CollectionBackgroundService : BackgroundService
                     IsCollecting = true;
                     await _collectorService.RunDueCollectorsAsync(stoppingToken);
                     LastCollectionTime = DateTime.UtcNow;
+
+                    /* Flush WAL during idle time instead of letting auto-checkpoint
+                       stall collectors mid-write with 2-3s stop-the-world pauses */
+                    await _collectorService.CheckpointAsync();
                 }
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
                 {

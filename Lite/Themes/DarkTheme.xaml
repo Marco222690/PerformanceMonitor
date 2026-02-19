@@ -1,5 +1,6 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
 
     <!-- ============================================ -->
     <!-- Darling Data Dark Theme                      -->
@@ -32,6 +33,18 @@
     <Color x:Key="WarningColor">#FFD54F</Color>
     <Color x:Key="ErrorColor">#E57373</Color>
     <Color x:Key="InfoColor">#2eaef1</Color>
+
+    <!-- Spacing Scale -->
+    <sys:Double x:Key="SpacingXS">2</sys:Double>
+    <sys:Double x:Key="SpacingSm">4</sys:Double>
+    <sys:Double x:Key="SpacingMd">8</sys:Double>
+    <sys:Double x:Key="SpacingLg">12</sys:Double>
+    <sys:Double x:Key="SpacingXL">16</sys:Double>
+
+    <!-- Corner Radius -->
+    <CornerRadius x:Key="CornerRadiusSm">2</CornerRadius>
+    <CornerRadius x:Key="CornerRadiusMd">4</CornerRadius>
+    <CornerRadius x:Key="CornerRadiusLg">6</CornerRadius>
 
     <!-- Brushes -->
     <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}"/>
@@ -102,7 +115,20 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="border" Property="Background" Value="{StaticResource BackgroundLighterBrush}"/>
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <ColorAnimation Storyboard.TargetName="border" Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)" To="{StaticResource BackgroundLighterColor}" Duration="0:0:0.12"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <ColorAnimation Storyboard.TargetName="border" Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)" To="{StaticResource BackgroundLightColor}" Duration="0:0:0.12"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
                             <Setter TargetName="border" Property="Background" Value="{StaticResource AccentPressedBrush}"/>
@@ -209,12 +235,12 @@
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="Foreground" Value="White"/>
         <Setter Property="BorderThickness" Value="0"/>
-        <Setter Property="Width" Value="18"/>
-        <Setter Property="Height" Value="18"/>
+        <Setter Property="Width" Value="22"/>
+        <Setter Property="Height" Value="22"/>
         <Setter Property="Padding" Value="0"/>
         <Setter Property="Margin" Value="6,0,0,0"/>
         <Setter Property="Cursor" Value="Hand"/>
-        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="FontSize" Value="15"/>
         <Setter Property="FontWeight" Value="Bold"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
         <Setter Property="ToolTip" Value="Close tab"/>
@@ -331,9 +357,13 @@
     <!-- Column Filter Button Style when filter is active -->
     <Style x:Key="ColumnFilterButtonActiveStyle" TargetType="Button" BasedOn="{StaticResource ColumnFilterButtonStyle}">
         <Setter Property="Foreground" Value="#FFD700"/>
+        <Setter Property="Background" Value="#33FFD700"/>
+        <Setter Property="Content" Value="&#xE16E;"/>
+        <Setter Property="ToolTip" Value="Filter active — click to modify"/>
         <Style.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
                 <Setter Property="Foreground" Value="#FFEC8B"/>
+                <Setter Property="Background" Value="#55FFD700"/>
             </Trigger>
         </Style.Triggers>
     </Style>
@@ -1063,7 +1093,7 @@
     <!-- ============================================ -->
     <!-- ToolTip Style                                -->
     <!-- ============================================ -->
-    <Style x:Key="DarkToolTip" TargetType="ToolTip">
+    <Style TargetType="ToolTip">
         <Setter Property="Background" Value="{StaticResource BackgroundLightBrush}"/>
         <Setter Property="Foreground" Value="{StaticResource ForegroundBrush}"/>
         <Setter Property="BorderBrush" Value="{StaticResource BorderLightBrush}"/>

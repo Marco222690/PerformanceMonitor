@@ -46,6 +46,11 @@ OPTION(RECOMPILE);";
         _lastSqlMs = 0;
         _lastDuckDbMs = 0;
 
+        /* Incremental: only fetch runtime_stats intervals newer than what we already have */
+        var lastCollectedTime = await GetLastCollectedTimeAsync(
+            serverId, "query_store_stats", "last_execution_time", cancellationToken);
+        var cutoffTime = lastCollectedTime ?? DateTime.UtcNow.AddMinutes(-60);
+
         var sqlSw = Stopwatch.StartNew();
         using var sqlConnection = await CreateConnectionAsync(server, cancellationToken);
 
@@ -72,7 +77,7 @@ OPTION(RECOMPILE);";
         using var duckConnection = _duckDb.CreateConnection();
         await duckConnection.OpenAsync(cancellationToken);
 
-        /* For each database, collect top queries */
+        /* For each database, collect new query store intervals since last collection */
         foreach (var dbName in databases)
         {
             try
@@ -81,41 +86,36 @@ OPTION(RECOMPILE);";
 EXECUTE [{dbName.Replace("]", "]]")}].sys.sp_executesql
     N'SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 
-     SELECT TOP (100)
+     SELECT
          query_id = qsq.query_id,
          plan_id = qsp.plan_id,
          query_text = qst.query_sql_text,
          query_hash = CONVERT(varchar(64), qsq.query_hash, 1),
-         execution_count = SUM(qsrs.count_executions),
-         avg_duration_ms = CONVERT(decimal(18,2), AVG(qsrs.avg_duration) / 1000.0),
-         avg_cpu_time_ms = CONVERT(decimal(18,2), AVG(qsrs.avg_cpu_time) / 1000.0),
-         avg_logical_reads = CONVERT(decimal(18,2), AVG(qsrs.avg_logical_io_reads)),
-         avg_logical_writes = CONVERT(decimal(18,2), AVG(qsrs.avg_logical_io_writes)),
-         avg_physical_reads = CONVERT(decimal(18,2), AVG(qsrs.avg_physical_io_reads)),
-         avg_rowcount = CONVERT(decimal(18,2), AVG(qsrs.avg_rowcount)),
-         last_execution_time = MAX(qsrs.last_execution_time),
+         execution_count = qsrs.count_executions,
+         avg_duration_ms = CONVERT(decimal(18,2), qsrs.avg_duration / 1000.0),
+         avg_cpu_time_ms = CONVERT(decimal(18,2), qsrs.avg_cpu_time / 1000.0),
+         avg_logical_reads = CONVERT(decimal(18,2), qsrs.avg_logical_io_reads),
+         avg_logical_writes = CONVERT(decimal(18,2), qsrs.avg_logical_io_writes),
+         avg_physical_reads = CONVERT(decimal(18,2), qsrs.avg_physical_io_reads),
+         avg_rowcount = CONVERT(decimal(18,2), qsrs.avg_rowcount),
+         last_execution_time = qsrs.last_execution_time,
          query_plan_hash = CONVERT(varchar(64), qsp.query_plan_hash, 1)
-     FROM sys.query_store_query AS qsq
+     FROM sys.query_store_runtime_stats AS qsrs
+     JOIN sys.query_store_plan AS qsp
+       ON qsp.plan_id = qsrs.plan_id
+     JOIN sys.query_store_query AS qsq
+       ON qsq.query_id = qsp.query_id
      JOIN sys.query_store_query_text AS qst
        ON qst.query_text_id = qsq.query_text_id
-     JOIN sys.query_store_plan AS qsp
-       ON qsp.query_id = qsq.query_id
-     JOIN sys.query_store_runtime_stats AS qsrs
-       ON qsrs.plan_id = qsp.plan_id
-     WHERE qsrs.last_execution_time >= DATEADD(HOUR, -24, SYSDATETIME())
-     GROUP BY
-         qsq.query_id,
-         qsp.plan_id,
-         qst.query_sql_text,
-         qsq.query_hash,
-         qsp.query_plan_hash
-     ORDER BY
-         SUM(qsrs.avg_duration * qsrs.count_executions) DESC
-     OPTION(RECOMPILE);';";
+     WHERE qsrs.last_execution_time > @cutoff_time
+     OPTION(RECOMPILE);',
+    N'@cutoff_time datetime2(7)',
+    @cutoff_time;";
 
                 sqlSw.Start();
                 using var qsCommand = new SqlCommand(qsQuery, sqlConnection);
                 qsCommand.CommandTimeout = CommandTimeoutSeconds;
+                qsCommand.Parameters.Add(new SqlParameter("@cutoff_time", System.Data.SqlDbType.DateTime2) { Value = cutoffTime });
 
                 using var reader = await qsCommand.ExecuteReaderAsync(cancellationToken);
                 sqlSw.Stop();

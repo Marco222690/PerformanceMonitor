@@ -153,7 +153,7 @@ public partial class RemoteCollectorService
     /// <summary>
     /// Records a collector execution result for health tracking.
     /// </summary>
-    private void RecordCollectorResult(int serverId, string collectorName, bool success, string? errorMessage = null)
+    private void RecordCollectorResult(int serverId, string collectorName, string status, string? errorMessage = null)
     {
         lock (_healthLock)
         {
@@ -164,11 +164,19 @@ public partial class RemoteCollectorService
                 _collectorHealth[key] = entry;
             }
 
-            if (success)
+            if (status == "SUCCESS")
             {
                 entry.LastSuccessTime = DateTime.UtcNow;
                 entry.ConsecutiveErrors = 0;
                 entry.TotalSuccesses++;
+            }
+            else if (status == "PERMISSIONS")
+            {
+                /* Permission errors are not transient — don't count as failures
+                   (which would show FAILING) but don't count as success either.
+                   Record the error message so the user can see what's wrong. */
+                entry.LastErrorTime = DateTime.UtcNow;
+                entry.LastErrorMessage = errorMessage;
             }
             else
             {
@@ -337,6 +345,7 @@ public partial class RemoteCollectorService
             }
             else if (ex.Number == 229 || ex.Number == 297 || ex.Number == 300)
             {
+                status = "PERMISSIONS";
                 _logger?.LogWarning("Collector '{Collector}' permission denied for server '{Server}': {Message}",
                     collectorName, server.DisplayName, ex.Message);
             }
@@ -369,7 +378,7 @@ public partial class RemoteCollectorService
         }
 
         // Track collector health
-        RecordCollectorResult(GetServerId(server), collectorName, status == "SUCCESS", errorMessage);
+        RecordCollectorResult(GetServerId(server), collectorName, status, errorMessage);
 
         // Log the collection attempt
         await LogCollectionAsync(GetServerId(server), server.DisplayName, collectorName, startTime, status, errorMessage, rowsCollected, _lastSqlMs, _lastDuckDbMs);
@@ -525,6 +534,31 @@ public partial class RemoteCollectorService
     protected static int GetServerId(ServerConnection server)
     {
         return GetDeterministicHashCode(server.ServerName);
+    }
+
+    /// <summary>
+    /// Gets the most recent value of a timestamp column from DuckDB for incremental collection.
+    /// Returns null on first run or if the query fails (caller uses a fallback window).
+    /// </summary>
+    protected async Task<DateTime?> GetLastCollectedTimeAsync(
+        int serverId, string tableName, string columnName, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var conn = _duckDb.CreateConnection();
+            await conn.OpenAsync(cancellationToken);
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = $"SELECT MAX({columnName}) FROM {tableName} WHERE server_id = $1";
+            cmd.Parameters.Add(new DuckDB.NET.Data.DuckDBParameter { Value = serverId });
+            var result = await cmd.ExecuteScalarAsync(cancellationToken);
+            if (result is DateTime dt)
+                return dt;
+        }
+        catch
+        {
+            /* If DuckDB query fails, caller uses fallback window */
+        }
+        return null;
     }
 
     /// <summary>

@@ -31,8 +31,9 @@ SELECT
     AVG(duration_ms) AS avg_duration_ms,
     MAX(CASE WHEN status = 'SUCCESS' THEN collection_time END) AS last_success_time,
     MAX(collection_time) AS last_run_time,
-    MAX(CASE WHEN status = 'ERROR' THEN error_message END) AS last_error,
-    MAX(CASE WHEN status = 'ERROR' THEN collection_time END) AS last_error_time
+    MAX(CASE WHEN status IN ('ERROR', 'PERMISSIONS') THEN error_message END) AS last_error,
+    MAX(CASE WHEN status IN ('ERROR', 'PERMISSIONS') THEN collection_time END) AS last_error_time,
+    SUM(CASE WHEN status = 'PERMISSIONS' THEN 1 ELSE 0 END) AS permission_denied_count
 FROM collection_log
 WHERE server_id = $1
 AND   collection_time >= $2
@@ -56,7 +57,8 @@ ORDER BY collector_name";
                 LastSuccessTime = reader.IsDBNull(5) ? null : reader.GetDateTime(5),
                 LastRunTime = reader.IsDBNull(6) ? null : reader.GetDateTime(6),
                 LastError = reader.IsDBNull(7) ? null : reader.GetString(7),
-                LastErrorTime = reader.IsDBNull(8) ? null : reader.GetDateTime(8)
+                LastErrorTime = reader.IsDBNull(8) ? null : reader.GetDateTime(8),
+                PermissionDeniedCount = reader.IsDBNull(9) ? 0 : ToInt64(reader.GetValue(9))
             });
         }
 
@@ -147,6 +149,7 @@ public class CollectorHealthRow
     public DateTime? LastRunTime { get; set; }
     public string? LastError { get; set; }
     public DateTime? LastErrorTime { get; set; }
+    public long PermissionDeniedCount { get; set; }
 
     public double FailureRatePercent => TotalRuns > 0 ? (double)ErrorCount / TotalRuns * 100 : 0;
     public double HoursSinceLastSuccess => LastSuccessTime.HasValue
@@ -158,6 +161,7 @@ public class CollectorHealthRow
         get
         {
             if (TotalRuns == 0) return "NEVER_RUN";
+            if (PermissionDeniedCount > 0 && ErrorCount == 0 && SuccessCount == 0) return "NO_PERMISSIONS";
             if (HoursSinceLastSuccess > 24) return "FAILING";
             if (HoursSinceLastSuccess > 4) return "STALE";
             if (FailureRatePercent > 20) return "WARNING";

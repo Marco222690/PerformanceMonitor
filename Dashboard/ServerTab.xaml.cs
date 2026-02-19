@@ -35,36 +35,7 @@ namespace PerformanceMonitorDashboard
         public int UtcOffsetMinutes { get; }
 
         public DatabaseService DatabaseService => _databaseService;
-        // Fun AI-powered loading messages
-        private static readonly string[] _loadingMessages = new[]
-        {
-            "Reticulating splines...",
-            "Consulting the oracle...",
-            "Asking the database nicely...",
-            "Crunching numbers...",
-            "Thinking really hard...",
-            "Mulling it over...",
-            "Communing with SQL Server...",
-            "Summoning data spirits...",
-            "Decoding the matrix...",
-            "Interrogating indexes...",
-            "Parsing the void...",
-            "Calibrating flux capacitors...",
-            "Negotiating with stored procedures...",
-            "Convincing queries to run faster...",
-            "Herding cursors...",
-            "Massaging execution plans...",
-            "Whispering to wait stats...",
-            "Befriending buffer pools...",
-            "Coaxing data from disk...",
-            "Pondering performance..."
-        };
-        private static readonly Random _loadingRandom = Random.Shared;
-
-        private string GetLoadingMessage()
-        {
-            return _loadingMessages[_loadingRandom.Next(_loadingMessages.Length)];
-        }
+        private static string GetLoadingMessage() => LoadingMessages.GetRandom();
 
 
         private readonly UserPreferencesService _preferencesService;
@@ -1687,7 +1658,6 @@ namespace PerformanceMonitorDashboard
             BlockingStatsBlockingEventsChart.Plot.Axes.DateTimeTicksBottom();
             BlockingStatsBlockingEventsChart.Plot.Axes.SetLimitsX(xMin, xMax);
             BlockingStatsBlockingEventsChart.Plot.YLabel("Count");
-            BlockingStatsBlockingEventsChart.Plot.HideGrid();
             LockChartVerticalAxis(BlockingStatsBlockingEventsChart);
             BlockingStatsBlockingEventsChart.Refresh();
 
@@ -1717,7 +1687,6 @@ namespace PerformanceMonitorDashboard
             BlockingStatsDurationChart.Plot.Axes.DateTimeTicksBottom();
             BlockingStatsDurationChart.Plot.Axes.SetLimitsX(xMin, xMax);
             BlockingStatsDurationChart.Plot.YLabel("Duration (ms)");
-            BlockingStatsDurationChart.Plot.HideGrid();
             LockChartVerticalAxis(BlockingStatsDurationChart);
             BlockingStatsDurationChart.Refresh();
 
@@ -1747,7 +1716,6 @@ namespace PerformanceMonitorDashboard
             BlockingStatsDeadlocksChart.Plot.Axes.DateTimeTicksBottom();
             BlockingStatsDeadlocksChart.Plot.Axes.SetLimitsX(xMin, xMax);
             BlockingStatsDeadlocksChart.Plot.YLabel("Count");
-            BlockingStatsDeadlocksChart.Plot.HideGrid();
             LockChartVerticalAxis(BlockingStatsDeadlocksChart);
             BlockingStatsDeadlocksChart.Refresh();
 
@@ -1777,7 +1745,6 @@ namespace PerformanceMonitorDashboard
             BlockingStatsDeadlockWaitTimeChart.Plot.Axes.DateTimeTicksBottom();
             BlockingStatsDeadlockWaitTimeChart.Plot.Axes.SetLimitsX(xMin, xMax);
             BlockingStatsDeadlockWaitTimeChart.Plot.YLabel("Duration (ms)");
-            BlockingStatsDeadlockWaitTimeChart.Plot.HideGrid();
             LockChartVerticalAxis(BlockingStatsDeadlockWaitTimeChart);
             BlockingStatsDeadlockWaitTimeChart.Refresh();
         }
@@ -1840,8 +1807,6 @@ namespace PerformanceMonitorDashboard
             LockWaitStatsChart.Plot.YLabel("Wait Time (ms/sec)");
             _legendPanels[LockWaitStatsChart] = LockWaitStatsChart.Plot.ShowLegend(ScottPlot.Edge.Bottom);
             LockWaitStatsChart.Plot.Legend.FontSize = 12;
-            LockWaitStatsChart.Plot.HideGrid();
-
             LockChartVerticalAxis(LockWaitStatsChart);
             LockWaitStatsChart.Refresh();
         }
@@ -2268,7 +2233,6 @@ namespace PerformanceMonitorDashboard
             ResourceOverviewCpuChart.Plot.Axes.SetLimitsX(xMin, xMax);
             ResourceOverviewCpuChart.Plot.Axes.SetLimitsY(0, 100);
             ResourceOverviewCpuChart.Plot.YLabel("CPU %");
-            ResourceOverviewCpuChart.Plot.HideGrid();
             LockChartVerticalAxis(ResourceOverviewCpuChart);
             ResourceOverviewCpuChart.Refresh();
         }
@@ -2331,8 +2295,6 @@ namespace PerformanceMonitorDashboard
             ResourceOverviewMemoryChart.Plot.Axes.DateTimeTicksBottom();
             ResourceOverviewMemoryChart.Plot.Axes.SetLimitsX(xMin, xMax);
             ResourceOverviewMemoryChart.Plot.YLabel("MB");
-            ResourceOverviewMemoryChart.Plot.HideGrid();
-
             LockChartVerticalAxis(ResourceOverviewMemoryChart);
             ResourceOverviewMemoryChart.Refresh();
         }
@@ -2411,8 +2373,6 @@ namespace PerformanceMonitorDashboard
             ResourceOverviewIoChart.Plot.Axes.SetLimitsX(xMin, xMax);
             ResourceOverviewIoChart.Plot.Axes.AutoScaleY();
             ResourceOverviewIoChart.Plot.YLabel("Latency (ms)");
-            ResourceOverviewIoChart.Plot.HideGrid();
-
             LockChartVerticalAxis(ResourceOverviewIoChart);
             ResourceOverviewIoChart.Refresh();
         }
@@ -2485,8 +2445,6 @@ namespace PerformanceMonitorDashboard
             ResourceOverviewWaitChart.Plot.Axes.SetLimitsX(xMin, xMax);
             ResourceOverviewWaitChart.Plot.Axes.AutoScaleY();
             ResourceOverviewWaitChart.Plot.YLabel("Wait Time (ms/sec)");
-            ResourceOverviewWaitChart.Plot.HideGrid();
-
             LockChartVerticalAxis(ResourceOverviewWaitChart);
             ResourceOverviewWaitChart.Refresh();
         }

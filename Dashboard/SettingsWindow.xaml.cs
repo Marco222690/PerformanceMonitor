@@ -247,6 +247,42 @@ namespace PerformanceMonitorDashboard
             UpdateAlertNotificationStates();
         }
 
+        private void RestoreAlertDefaultsButton_Click(object sender, RoutedEventArgs e)
+        {
+            BlockingThresholdTextBox.Text = "30";
+            DeadlockThresholdTextBox.Text = "1";
+            CpuThresholdTextBox.Text = "90";
+            PoisonWaitThresholdTextBox.Text = "500";
+            LongRunningQueryThresholdTextBox.Text = "30";
+            TempDbSpaceThresholdTextBox.Text = "80";
+            LongRunningJobMultiplierTextBox.Text = "3";
+            UpdateAlertPreviewText();
+        }
+
+        private void UpdateAlertPreviewText()
+        {
+            var parts = new System.Collections.Generic.List<string>();
+
+            if (NotifyOnBlockingCheckBox.IsChecked == true)
+                parts.Add($"blocking > {BlockingThresholdTextBox.Text}s");
+            if (NotifyOnDeadlockCheckBox.IsChecked == true)
+                parts.Add($"deadlocks >= {DeadlockThresholdTextBox.Text}");
+            if (NotifyOnHighCpuCheckBox.IsChecked == true)
+                parts.Add($"CPU > {CpuThresholdTextBox.Text}%");
+            if (NotifyOnPoisonWaitsCheckBox.IsChecked == true)
+                parts.Add($"poison waits >= {PoisonWaitThresholdTextBox.Text}ms avg");
+            if (NotifyOnLongRunningQueriesCheckBox.IsChecked == true)
+                parts.Add($"queries > {LongRunningQueryThresholdTextBox.Text}min");
+            if (NotifyOnTempDbSpaceCheckBox.IsChecked == true)
+                parts.Add($"TempDB > {TempDbSpaceThresholdTextBox.Text}%");
+            if (NotifyOnLongRunningJobsCheckBox.IsChecked == true)
+                parts.Add($"jobs > {LongRunningJobMultiplierTextBox.Text}x avg");
+
+            AlertPreviewText.Text = parts.Count > 0
+                ? $"Will alert when: {string.Join(", ", parts)}"
+                : "No alerts enabled";
+        }
+
         private void UpdateAlertNotificationStates()
         {
             bool notificationsEnabled = NotificationsEnabledCheckBox.IsChecked == true;
@@ -264,6 +300,7 @@ namespace PerformanceMonitorDashboard
             TempDbSpaceThresholdTextBox.IsEnabled = notificationsEnabled && NotifyOnTempDbSpaceCheckBox.IsChecked == true;
             NotifyOnLongRunningJobsCheckBox.IsEnabled = notificationsEnabled;
             LongRunningJobMultiplierTextBox.IsEnabled = notificationsEnabled && NotifyOnLongRunningJobsCheckBox.IsChecked == true;
+            UpdateAlertPreviewText();
         }
 
         private void UpdateNotificationCheckboxStates()
@@ -440,41 +477,57 @@ namespace PerformanceMonitorDashboard
             prefs.NotifyOnConnectionLost = NotifyConnectionLostCheckBox.IsChecked == true;
             prefs.NotifyOnConnectionRestored = NotifyConnectionRestoredCheckBox.IsChecked == true;
 
-            // Save alert notification settings
+            // Save alert notification settings with validation
+            var validationErrors = new System.Collections.Generic.List<string>();
+
             prefs.NotifyOnBlocking = NotifyOnBlockingCheckBox.IsChecked == true;
             if (int.TryParse(BlockingThresholdTextBox.Text, out int blockingThreshold) && blockingThreshold > 0)
-            {
                 prefs.BlockingThresholdSeconds = blockingThreshold;
-            }
+            else if (prefs.NotifyOnBlocking)
+                validationErrors.Add("Blocking threshold must be a positive number");
+
             prefs.NotifyOnDeadlock = NotifyOnDeadlockCheckBox.IsChecked == true;
             if (int.TryParse(DeadlockThresholdTextBox.Text, out int deadlockThreshold) && deadlockThreshold > 0)
-            {
                 prefs.DeadlockThreshold = deadlockThreshold;
-            }
+            else if (prefs.NotifyOnDeadlock)
+                validationErrors.Add("Deadlock threshold must be a positive number");
+
             prefs.NotifyOnHighCpu = NotifyOnHighCpuCheckBox.IsChecked == true;
             if (int.TryParse(CpuThresholdTextBox.Text, out int cpuThreshold) && cpuThreshold > 0 && cpuThreshold <= 100)
-            {
                 prefs.CpuThresholdPercent = cpuThreshold;
-            }
+            else if (prefs.NotifyOnHighCpu)
+                validationErrors.Add("CPU threshold must be between 1 and 100");
+
             prefs.NotifyOnPoisonWaits = NotifyOnPoisonWaitsCheckBox.IsChecked == true;
             if (int.TryParse(PoisonWaitThresholdTextBox.Text, out int poisonWaitThreshold) && poisonWaitThreshold > 0)
-            {
                 prefs.PoisonWaitThresholdMs = poisonWaitThreshold;
-            }
+            else if (prefs.NotifyOnPoisonWaits)
+                validationErrors.Add("Poison wait threshold must be a positive number");
+
             prefs.NotifyOnLongRunningQueries = NotifyOnLongRunningQueriesCheckBox.IsChecked == true;
             if (int.TryParse(LongRunningQueryThresholdTextBox.Text, out int lrqThreshold) && lrqThreshold > 0)
-            {
                 prefs.LongRunningQueryThresholdMinutes = lrqThreshold;
-            }
+            else if (prefs.NotifyOnLongRunningQueries)
+                validationErrors.Add("Long-running query threshold must be a positive number");
+
             prefs.NotifyOnTempDbSpace = NotifyOnTempDbSpaceCheckBox.IsChecked == true;
             if (int.TryParse(TempDbSpaceThresholdTextBox.Text, out int tempDbThreshold) && tempDbThreshold > 0 && tempDbThreshold <= 100)
-            {
                 prefs.TempDbSpaceThresholdPercent = tempDbThreshold;
-            }
+            else if (prefs.NotifyOnTempDbSpace)
+                validationErrors.Add("TempDB space threshold must be between 1 and 100");
+
             prefs.NotifyOnLongRunningJobs = NotifyOnLongRunningJobsCheckBox.IsChecked == true;
             if (int.TryParse(LongRunningJobMultiplierTextBox.Text, out int jobMultiplier) && jobMultiplier > 0)
-            {
                 prefs.LongRunningJobMultiplier = jobMultiplier;
+            else if (prefs.NotifyOnLongRunningJobs)
+                validationErrors.Add("Job multiplier must be a positive number");
+
+            if (validationErrors.Count > 0)
+            {
+                MessageBox.Show(
+                    "Some alert thresholds have invalid values and were not changed:\n\n" +
+                    string.Join("\n", validationErrors),
+                    "Validation", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
 
             // Save SMTP email settings
@@ -534,6 +587,35 @@ namespace PerformanceMonitorDashboard
             SmtpFromTextBox.IsEnabled = enabled;
             SmtpRecipientsTextBox.IsEnabled = enabled;
             TestEmailButton.IsEnabled = enabled;
+            ValidateSmtpButton.IsEnabled = enabled;
+        }
+
+        private void ValidateSmtpButton_Click(object sender, RoutedEventArgs e)
+        {
+            var errors = new System.Collections.Generic.List<string>();
+
+            if (string.IsNullOrWhiteSpace(SmtpServerTextBox.Text))
+                errors.Add("SMTP server is required");
+            if (!int.TryParse(SmtpPortTextBox.Text, out var port) || port < 1 || port > 65535)
+                errors.Add("Port must be between 1 and 65535");
+            if (string.IsNullOrWhiteSpace(SmtpFromTextBox.Text))
+                errors.Add("From address is required");
+            else if (!SmtpFromTextBox.Text.Trim().Contains('@'))
+                errors.Add("From address must be a valid email");
+            if (string.IsNullOrWhiteSpace(SmtpRecipientsTextBox.Text))
+                errors.Add("At least one recipient is required");
+
+            if (errors.Count == 0)
+            {
+                TestEmailStatusText.Text = "Settings look good. Use 'Send Test Email' to verify delivery.";
+            }
+            else
+            {
+                TestEmailStatusText.Text = "";
+                MessageBox.Show(
+                    "SMTP configuration has issues:\n\n" + string.Join("\n", errors),
+                    "SMTP Validation", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
         }
 
         private async void TestEmailButton_Click(object sender, RoutedEventArgs e)

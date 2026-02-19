@@ -45,6 +45,13 @@ public partial class ServerTab : UserControl
     private Helpers.ChartHoverHelper? _tempDbFileIoHover;
     private Helpers.ChartHoverHelper? _fileIoReadHover;
     private Helpers.ChartHoverHelper? _fileIoWriteHover;
+    private Helpers.ChartHoverHelper? _collectorDurationHover;
+    private Helpers.ChartHoverHelper? _queryDurationTrendHover;
+    private Helpers.ChartHoverHelper? _procDurationTrendHover;
+    private Helpers.ChartHoverHelper? _queryStoreDurationTrendHover;
+    private Helpers.ChartHoverHelper? _executionCountTrendHover;
+    private Helpers.ChartHoverHelper? _blockingTrendHover;
+    private Helpers.ChartHoverHelper? _deadlockTrendHover;
 
     /* Column filtering */
     private Popup? _filterPopup;
@@ -138,6 +145,13 @@ public partial class ServerTab : UserControl
         _tempDbFileIoHover = new Helpers.ChartHoverHelper(TempDbFileIoChart, "ms");
         _fileIoReadHover = new Helpers.ChartHoverHelper(FileIoReadChart, "ms");
         _fileIoWriteHover = new Helpers.ChartHoverHelper(FileIoWriteChart, "ms");
+        _collectorDurationHover = new Helpers.ChartHoverHelper(CollectorDurationChart, "ms");
+        _queryDurationTrendHover = new Helpers.ChartHoverHelper(QueryDurationTrendChart, "ms/sec");
+        _procDurationTrendHover = new Helpers.ChartHoverHelper(ProcDurationTrendChart, "ms/sec");
+        _queryStoreDurationTrendHover = new Helpers.ChartHoverHelper(QueryStoreDurationTrendChart, "ms/sec");
+        _executionCountTrendHover = new Helpers.ChartHoverHelper(ExecutionCountTrendChart, "/sec");
+        _blockingTrendHover = new Helpers.ChartHoverHelper(BlockingTrendChart, "incidents");
+        _deadlockTrendHover = new Helpers.ChartHoverHelper(DeadlockTrendChart, "deadlocks");
 
         /* Initial load is triggered by MainWindow.ConnectToServer calling RefreshData()
            after collectors finish - no Loaded handler needed */
@@ -847,6 +861,7 @@ public partial class ServerTab : UserControl
             rangeStart = rangeEnd.AddHours(-hoursBack);
         }
 
+        _blockingTrendHover?.Clear();
         if (data.Count == 0)
         {
             /* No blocking events — show a flat line at zero so the chart looks active */
@@ -896,6 +911,7 @@ public partial class ServerTab : UserControl
         plot.LegendText = "Blocking Incidents";
         plot.Color = ScottPlot.Color.FromHex("#E57373");
         plot.MarkerSize = 0; /* No markers, just lines */
+        _blockingTrendHover?.Add(plot, "Blocking Incidents");
 
         BlockingTrendChart.Plot.Axes.DateTimeTicksBottom();
         BlockingTrendChart.Plot.Axes.SetLimitsX(rangeStart.ToOADate(), rangeEnd.ToOADate());
@@ -924,6 +940,7 @@ public partial class ServerTab : UserControl
             rangeStart = rangeEnd.AddHours(-hoursBack);
         }
 
+        _deadlockTrendHover?.Clear();
         if (data.Count == 0)
         {
             /* No deadlocks — show a flat line at zero so the chart looks active */
@@ -973,6 +990,7 @@ public partial class ServerTab : UserControl
         plot.LegendText = "Deadlocks";
         plot.Color = ScottPlot.Color.FromHex("#FFB74D");
         plot.MarkerSize = 0; /* No markers, just lines */
+        _deadlockTrendHover?.Add(plot, "Deadlocks");
 
         DeadlockTrendChart.Plot.Axes.DateTimeTicksBottom();
         DeadlockTrendChart.Plot.Axes.SetLimitsX(rangeStart.ToOADate(), rangeEnd.ToOADate());
@@ -995,9 +1013,11 @@ public partial class ServerTab : UserControl
         var times = data.Select(d => d.CollectionTime.AddMinutes(UtcOffsetMinutes).ToOADate()).ToArray();
         var values = data.Select(d => d.Value).ToArray();
 
+        _queryDurationTrendHover?.Clear();
         var plot = QueryDurationTrendChart.Plot.Add.Scatter(times, values);
         plot.LegendText = "Query Duration";
         plot.Color = ScottPlot.Color.FromHex("#4FC3F7");
+        _queryDurationTrendHover?.Add(plot, "Query Duration");
 
         QueryDurationTrendChart.Plot.Axes.DateTimeTicksBottom();
         ReapplyAxisColors(QueryDurationTrendChart);
@@ -1017,9 +1037,11 @@ public partial class ServerTab : UserControl
         var times = data.Select(d => d.CollectionTime.AddMinutes(UtcOffsetMinutes).ToOADate()).ToArray();
         var values = data.Select(d => d.Value).ToArray();
 
+        _procDurationTrendHover?.Clear();
         var plot = ProcDurationTrendChart.Plot.Add.Scatter(times, values);
         plot.LegendText = "Procedure Duration";
         plot.Color = ScottPlot.Color.FromHex("#81C784");
+        _procDurationTrendHover?.Add(plot, "Procedure Duration");
 
         ProcDurationTrendChart.Plot.Axes.DateTimeTicksBottom();
         ReapplyAxisColors(ProcDurationTrendChart);
@@ -1039,9 +1061,11 @@ public partial class ServerTab : UserControl
         var times = data.Select(d => d.CollectionTime.AddMinutes(UtcOffsetMinutes).ToOADate()).ToArray();
         var values = data.Select(d => d.Value).ToArray();
 
+        _queryStoreDurationTrendHover?.Clear();
         var plot = QueryStoreDurationTrendChart.Plot.Add.Scatter(times, values);
         plot.LegendText = "Query Store Duration";
         plot.Color = ScottPlot.Color.FromHex("#FFB74D");
+        _queryStoreDurationTrendHover?.Add(plot, "Query Store Duration");
 
         QueryStoreDurationTrendChart.Plot.Axes.DateTimeTicksBottom();
         ReapplyAxisColors(QueryStoreDurationTrendChart);
@@ -1061,9 +1085,11 @@ public partial class ServerTab : UserControl
         var times = data.Select(d => d.CollectionTime.AddMinutes(UtcOffsetMinutes).ToOADate()).ToArray();
         var values = data.Select(d => d.Value).ToArray();
 
+        _executionCountTrendHover?.Clear();
         var plot = ExecutionCountTrendChart.Plot.Add.Scatter(times, values);
         plot.LegendText = "Executions";
         plot.Color = ScottPlot.Color.FromHex("#BA68C8");
+        _executionCountTrendHover?.Add(plot, "Executions");
 
         ExecutionCountTrendChart.Plot.Axes.DateTimeTicksBottom();
         ReapplyAxisColors(ExecutionCountTrendChart);
@@ -1467,7 +1493,7 @@ public partial class ServerTab : UserControl
         var darkBackground = ScottPlot.Color.FromHex("#22252b");
         var darkerBackground = ScottPlot.Color.FromHex("#111217");
         var textColor = ScottPlot.Color.FromHex("#9DA5B4");
-        var gridColor = ScottPlot.Colors.White.WithAlpha(20);
+        var gridColor = ScottPlot.Colors.White.WithAlpha(40);
 
         chart.Plot.FigureBackground.Color = darkBackground;
         chart.Plot.DataBackground.Color = darkerBackground;
@@ -1915,13 +1941,14 @@ public partial class ServerTab : UserControl
             .OrderBy(g => g.Key)
             .ToList();
 
+        _collectorDurationHover?.Clear();
         int colorIdx = 0;
         foreach (var group in groups)
         {
             var points = group.OrderBy(d => d.CollectionTime).ToList();
             if (points.Count < 2) continue;
 
-            var times = points.Select(d => d.CollectionTime.ToLocalTime().ToOADate()).ToArray();
+            var times = points.Select(d => d.CollectionTime.AddMinutes(UtcOffsetMinutes).ToOADate()).ToArray();
             var durations = points.Select(d => (double)d.DurationMs!.Value).ToArray();
 
             var scatter = CollectorDurationChart.Plot.Add.Scatter(times, durations);
@@ -1929,6 +1956,7 @@ public partial class ServerTab : UserControl
             scatter.Color = ScottPlot.Color.FromHex(SeriesColors[colorIdx % SeriesColors.Length]);
             scatter.LineWidth = 2;
             scatter.MarkerSize = 0;
+            _collectorDurationHover?.Add(scatter, group.Key);
             colorIdx++;
         }
 

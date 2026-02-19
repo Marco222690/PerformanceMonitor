@@ -268,7 +268,6 @@ namespace PerformanceMonitorDashboard.Controls
             MemoryStatsOverviewChart.Plot.Axes.DateTimeTicksBottom();
             MemoryStatsOverviewChart.Plot.Axes.SetLimitsX(xMin, xMax);
             MemoryStatsOverviewChart.Plot.YLabel("MB");
-            MemoryStatsOverviewChart.Plot.HideGrid();
             // Fixed negative space for legend
             MemoryStatsOverviewChart.Plot.Axes.AutoScaleY();
             var memOverviewLimits = MemoryStatsOverviewChart.Plot.Axes.GetLimits();
@@ -383,6 +382,13 @@ namespace PerformanceMonitorDashboard.Controls
 
             try
             {
+                // Only show loading overlay on initial load (no existing chart data)
+                if (!MemoryGrantsChart.Plot.GetPlottables().Any())
+                {
+                    MemoryGrantsLoading.IsLoading = true;
+                    MemoryGrantsNoDataMessage.Visibility = Visibility.Collapsed;
+                }
+
                 var data = await _databaseService.GetMemoryGrantStatsAsync(_memoryGrantsHoursBack, _memoryGrantsFromDate, _memoryGrantsToDate);
                 var dataList = data.ToList();
                 MemoryGrantsNoDataMessage.Visibility = dataList.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -391,6 +397,10 @@ namespace PerformanceMonitorDashboard.Controls
             catch (Exception ex)
             {
                 Logger.Error($"Error loading memory grants: {ex.Message}");
+            }
+            finally
+            {
+                MemoryGrantsLoading.IsLoading = false;
             }
         }
 
@@ -465,7 +475,6 @@ namespace PerformanceMonitorDashboard.Controls
             MemoryGrantsChart.Plot.Axes.DateTimeTicksBottom();
             MemoryGrantsChart.Plot.Axes.SetLimitsX(xMin, xMax);
             MemoryGrantsChart.Plot.YLabel("MB");
-            MemoryGrantsChart.Plot.HideGrid();
             // Fixed negative space for legend
             MemoryGrantsChart.Plot.Axes.AutoScaleY();
             var grantsLimits = MemoryGrantsChart.Plot.Axes.GetLimits();
@@ -485,6 +494,13 @@ namespace PerformanceMonitorDashboard.Controls
 
             try
             {
+                // Only show loading overlay on initial load (no existing chart data)
+                if (!MemoryClerksChart.Plot.GetPlottables().Any())
+                {
+                    MemoryClerksLoading.IsLoading = true;
+                    MemoryClerksNoDataMessage.Visibility = Visibility.Collapsed;
+                }
+
                 var data = await _databaseService.GetMemoryClerksTopNAsync(5, _memoryClerksHoursBack, _memoryClerksFromDate, _memoryClerksToDate);
                 var dataList = data.ToList();
                 MemoryClerksNoDataMessage.Visibility = dataList.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -493,6 +509,10 @@ namespace PerformanceMonitorDashboard.Controls
             catch (Exception ex)
             {
                 Logger.Error($"Error loading memory clerks: {ex.Message}");
+            }
+            finally
+            {
+                MemoryClerksLoading.IsLoading = false;
             }
         }
 
@@ -565,7 +585,6 @@ namespace PerformanceMonitorDashboard.Controls
             MemoryClerksChart.Plot.Axes.DateTimeTicksBottom();
             MemoryClerksChart.Plot.Axes.SetLimitsX(xMin, xMax);
             MemoryClerksChart.Plot.YLabel("MB");
-            MemoryClerksChart.Plot.HideGrid();
             // Fixed negative space for legend
             MemoryClerksChart.Plot.Axes.AutoScaleY();
             var clerksLimits = MemoryClerksChart.Plot.Axes.GetLimits();
@@ -715,7 +734,6 @@ namespace PerformanceMonitorDashboard.Controls
             PlanCacheChart.Plot.Axes.DateTimeTicksBottom();
             PlanCacheChart.Plot.Axes.SetLimitsX(xMin, xMax);
             PlanCacheChart.Plot.YLabel("MB");
-            PlanCacheChart.Plot.HideGrid();
             // Fixed negative space for legend
             PlanCacheChart.Plot.Axes.AutoScaleY();
             var planCacheLimits = PlanCacheChart.Plot.Axes.GetLimits();
@@ -835,7 +853,6 @@ namespace PerformanceMonitorDashboard.Controls
             MemoryPressureEventsChart.Plot.Axes.DateTimeTicksBottom();
             MemoryPressureEventsChart.Plot.Axes.SetLimitsX(xMin, xMax);
             MemoryPressureEventsChart.Plot.YLabel("Event Count");
-            MemoryPressureEventsChart.Plot.HideGrid();
             // Fixed negative space for legend
             MemoryPressureEventsChart.Plot.Axes.AutoScaleY();
             var pressureLimits = MemoryPressureEventsChart.Plot.Axes.GetLimits();

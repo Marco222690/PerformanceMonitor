@@ -1003,9 +1003,11 @@ public partial class ServerTab : UserControl
         var times = data.Select(d => d.CollectionTime.AddMinutes(UtcOffsetMinutes).ToOADate()).ToArray();
         var values = data.Select(d => d.Value).ToArray();
 
+        _queryDurationTrendHover?.Clear();
         var plot = QueryDurationTrendChart.Plot.Add.Scatter(times, values);
         plot.LegendText = "Query Duration";
         plot.Color = ScottPlot.Color.FromHex("#4FC3F7");
+        _queryDurationTrendHover?.Add(plot, "Query Duration");
 
         QueryDurationTrendChart.Plot.Axes.DateTimeTicksBottom();
         ReapplyAxisColors(QueryDurationTrendChart);
@@ -1025,9 +1027,11 @@ public partial class ServerTab : UserControl
         var times = data.Select(d => d.CollectionTime.AddMinutes(UtcOffsetMinutes).ToOADate()).ToArray();
         var values = data.Select(d => d.Value).ToArray();
 
+        _procDurationTrendHover?.Clear();
         var plot = ProcDurationTrendChart.Plot.Add.Scatter(times, values);
         plot.LegendText = "Procedure Duration";
         plot.Color = ScottPlot.Color.FromHex("#81C784");
+        _procDurationTrendHover?.Add(plot, "Procedure Duration");
 
         ProcDurationTrendChart.Plot.Axes.DateTimeTicksBottom();
         ReapplyAxisColors(ProcDurationTrendChart);
@@ -1047,9 +1051,11 @@ public partial class ServerTab : UserControl
         var times = data.Select(d => d.CollectionTime.AddMinutes(UtcOffsetMinutes).ToOADate()).ToArray();
         var values = data.Select(d => d.Value).ToArray();
 
+        _queryStoreDurationTrendHover?.Clear();
         var plot = QueryStoreDurationTrendChart.Plot.Add.Scatter(times, values);
         plot.LegendText = "Query Store Duration";
         plot.Color = ScottPlot.Color.FromHex("#FFB74D");
+        _queryStoreDurationTrendHover?.Add(plot, "Query Store Duration");
 
         QueryStoreDurationTrendChart.Plot.Axes.DateTimeTicksBottom();
         ReapplyAxisColors(QueryStoreDurationTrendChart);
@@ -1923,6 +1929,7 @@ public partial class ServerTab : UserControl
             .OrderBy(g => g.Key)
             .ToList();
 
+        _collectorDurationHover?.Clear();
         int colorIdx = 0;
         foreach (var group in groups)
         {
@@ -1937,6 +1944,7 @@ public partial class ServerTab : UserControl
             scatter.Color = ScottPlot.Color.FromHex(SeriesColors[colorIdx % SeriesColors.Length]);
             scatter.LineWidth = 2;
             scatter.MarkerSize = 0;
+            _collectorDurationHover?.Add(scatter, group.Key);
             colorIdx++;
         }
 

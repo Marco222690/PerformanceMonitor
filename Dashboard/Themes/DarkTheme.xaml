@@ -173,6 +173,44 @@
         </Setter>
     </Style>
 
+    <!-- Time Range Button Style (hour picker with visible hover) -->
+    <Style x:Key="TimeRangeButton" TargetType="Button">
+        <Setter Property="Background" Value="{StaticResource BackgroundLightBrush}"/>
+        <Setter Property="Foreground" Value="{StaticResource ForegroundDimBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="10,5"/>
+        <Setter Property="MinWidth" Value="60"/>
+        <Setter Property="Margin" Value="2,0"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="border"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="3"
+                            Padding="{TemplateBinding Padding}"
+                            TextElement.Foreground="{TemplateBinding Foreground}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="border" Property="Background" Value="{StaticResource BackgroundLighterBrush}"/>
+                            <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                            <Setter Property="Foreground" Value="{StaticResource ForegroundBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="border" Property="Background" Value="{StaticResource AccentPressedBrush}"/>
+                            <Setter Property="Foreground" Value="White"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- No Data Message Style (for empty DataGrids) -->
     <Style x:Key="NoDataMessage" TargetType="TextBlock">
         <Setter Property="Text" Value="No data for selected time range"/>

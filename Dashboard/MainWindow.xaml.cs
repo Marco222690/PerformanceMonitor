@@ -554,7 +554,7 @@ namespace PerformanceMonitorDashboard
             }
 
             // Create the landing page
-            _landingPage = new LandingPage();
+            _landingPage = new LandingPage(_serverManager);
             _landingPage.ServerCardClicked += LandingPage_ServerCardClicked;
 
             // Create tab header with close button

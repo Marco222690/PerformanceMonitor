@@ -29,6 +29,12 @@ namespace PerformanceMonitorDashboard
         private ServerHealthStatus? _lastKnownStatus;
 
         /// <summary>
+        /// Raised when the user acknowledges a sub-tab alert (Locking, Memory, etc.)
+        /// so the sidebar badge can be updated.
+        /// </summary>
+        public event EventHandler? AlertAcknowledged;
+
+        /// <summary>
         /// This server's UTC offset in minutes, used to restore the global
         /// ServerTimeHelper when this tab becomes active.
         /// </summary>
@@ -3097,6 +3103,8 @@ namespace PerformanceMonitorDashboard
                     {
                         badge.Visibility = Visibility.Collapsed;
                     }
+
+                    AlertAcknowledged?.Invoke(this, EventArgs.Empty);
                 }
             }
         }

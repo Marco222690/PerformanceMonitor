@@ -445,6 +445,12 @@ namespace PerformanceMonitorDashboard
             Helpers.ServerTimeHelper.UtcOffsetMinutes = utcOffset;
 
             var serverTab = new ServerTab(server, utcOffset);
+            serverTab.AlertAcknowledged += (_, _) =>
+            {
+                _emailAlertService.HideAllAlerts(8760, server.DisplayName);
+                UpdateAlertBadge();
+                _alertsHistoryContent?.RefreshAlerts();
+            };
 
             var headerPanel = new StackPanel { Orientation = Orientation.Horizontal };
             var headerText = new TextBlock

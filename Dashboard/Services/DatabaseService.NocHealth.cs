@@ -505,7 +505,7 @@ namespace PerformanceMonitorDashboard.Services
 
                 SELECT TOP (1)
                     minutes_ago =
-                        DATEDIFF(MINUTE, bpx.event_time, SYSDATETIME())
+                        DATEDIFF(MINUTE, bpx.event_time, SYSUTCDATETIME())
                 FROM collect.blocked_process_xml AS bpx
                 ORDER BY
                     bpx.id DESC
@@ -530,7 +530,7 @@ namespace PerformanceMonitorDashboard.Services
 
                 SELECT TOP (1)
                     minutes_ago =
-                        DATEDIFF(MINUTE, dx.event_time, SYSDATETIME())
+                        DATEDIFF(MINUTE, dx.event_time, SYSUTCDATETIME())
                 FROM collect.deadlock_xml AS dx
                 ORDER BY
                     dx.id DESC

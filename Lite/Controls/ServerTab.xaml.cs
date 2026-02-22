@@ -53,6 +53,11 @@ public partial class ServerTab : UserControl
     private Helpers.ChartHoverHelper? _lockWaitTrendHover;
     private Helpers.ChartHoverHelper? _blockingTrendHover;
     private Helpers.ChartHoverHelper? _deadlockTrendHover;
+    private Helpers.ChartHoverHelper? _memoryClerksHover;
+
+    /* Memory clerks picker */
+    private List<SelectableItem> _memoryClerkItems = new();
+    private bool _isUpdatingMemoryClerkSelection;
 
     /* Column filtering */
     private Popup? _filterPopup;
@@ -163,6 +168,7 @@ public partial class ServerTab : UserControl
         _lockWaitTrendHover = new Helpers.ChartHoverHelper(LockWaitTrendChart, "ms/sec");
         _blockingTrendHover = new Helpers.ChartHoverHelper(BlockingTrendChart, "incidents");
         _deadlockTrendHover = new Helpers.ChartHoverHelper(DeadlockTrendChart, "deadlocks");
+        _memoryClerksHover = new Helpers.ChartHoverHelper(MemoryClerksChart, "MB");
 
         /* Initial load is triggered by MainWindow.ConnectToServer calling RefreshData()
            after collectors finish - no Loaded handler needed */
@@ -469,6 +475,7 @@ public partial class ServerTab : UserControl
             var deadlockTask = _dataService.GetRecentDeadlocksAsync(_serverId, hoursBack, fromDate, toDate);
             var blockedProcessTask = _dataService.GetRecentBlockedProcessReportsAsync(_serverId, hoursBack, fromDate, toDate);
             var waitTypesTask = _dataService.GetDistinctWaitTypesAsync(_serverId, hoursBack, fromDate, toDate);
+            var memoryClerkTypesTask = _dataService.GetDistinctMemoryClerkTypesAsync(_serverId, hoursBack, fromDate, toDate);
             var perfmonCountersTask = _dataService.GetDistinctPerfmonCountersAsync(_serverId, hoursBack, fromDate, toDate);
             var queryStoreTask = _dataService.GetQueryStoreTopQueriesAsync(_serverId, hoursBack, 50, fromDate, toDate);
             var memoryGrantTrendTask = _dataService.GetMemoryGrantTrendAsync(_serverId, hoursBack, fromDate, toDate);
@@ -483,7 +490,7 @@ public partial class ServerTab : UserControl
             await System.Threading.Tasks.Task.WhenAll(
                 snapshotsTask, cpuTask, memoryTask, memoryTrendTask,
                 queryStatsTask, procStatsTask, fileIoTask, fileIoTrendTask, tempDbTask, tempDbFileIoTask,
-                deadlockTask, blockedProcessTask, waitTypesTask, perfmonCountersTask,
+                deadlockTask, blockedProcessTask, waitTypesTask, memoryClerkTypesTask, perfmonCountersTask,
                 queryStoreTask, memoryGrantTrendTask,
                 serverConfigTask, databaseConfigTask, databaseScopedConfigTask, traceFlagsTask,
                 runningJobsTask, collectionHealthTask, collectionLogTask);
@@ -547,10 +554,12 @@ public partial class ServerTab : UserControl
 
             /* Populate pickers (preserve selections) */
             PopulateWaitTypePicker(waitTypesTask.Result);
+            PopulateMemoryClerkPicker(memoryClerkTypesTask.Result);
             PopulatePerfmonPicker(perfmonCountersTask.Result);
 
             /* Update picker-driven charts */
             await UpdateWaitStatsChartFromPickerAsync();
+            await UpdateMemoryClerksChartFromPickerAsync();
             await UpdatePerfmonChartFromPickerAsync();
 
             ConnectionStatusText.Text = $"{_server.ServerName} - Last refresh: {DateTime.Now:HH:mm:ss}";
@@ -1350,6 +1359,172 @@ public partial class ServerTab : UserControl
             SetChartYLimitsWithLegendPadding(WaitStatsChart, 0, globalMax > 0 ? globalMax : 100);
             ShowChartLegend(WaitStatsChart);
             WaitStatsChart.Refresh();
+        }
+        catch
+        {
+            /* Ignore chart update errors */
+        }
+    }
+
+    /* ========== Memory Clerks Picker ========== */
+
+    private void PopulateMemoryClerkPicker(List<string> clerkTypes)
+    {
+        var previouslySelected = new HashSet<string>(_memoryClerkItems.Where(i => i.IsSelected).Select(i => i.DisplayName));
+        var topClerks = previouslySelected.Count == 0 ? new HashSet<string>(clerkTypes.Take(5)) : null;
+        _memoryClerkItems = clerkTypes.Select(c => new SelectableItem
+        {
+            DisplayName = c,
+            IsSelected = previouslySelected.Contains(c) || (topClerks != null && topClerks.Contains(c))
+        }).ToList();
+        RefreshMemoryClerkListOrder();
+    }
+
+    private void RefreshMemoryClerkListOrder()
+    {
+        if (_memoryClerkItems == null) return;
+        _memoryClerkItems = _memoryClerkItems
+            .OrderByDescending(x => x.IsSelected)
+            .ThenBy(x => x.DisplayName)
+            .ToList();
+        ApplyMemoryClerkFilter();
+        UpdateMemoryClerkCount();
+    }
+
+    private void UpdateMemoryClerkCount()
+    {
+        if (_memoryClerkItems == null || MemoryClerkCountText == null) return;
+        int count = _memoryClerkItems.Count(x => x.IsSelected);
+        MemoryClerkCountText.Text = $"{count} selected";
+    }
+
+    private void ApplyMemoryClerkFilter()
+    {
+        var search = MemoryClerkSearchBox?.Text?.Trim() ?? "";
+        MemoryClerksList.ItemsSource = null;
+        if (string.IsNullOrEmpty(search))
+            MemoryClerksList.ItemsSource = _memoryClerkItems;
+        else
+            MemoryClerksList.ItemsSource = _memoryClerkItems.Where(i => i.DisplayName.Contains(search, StringComparison.OrdinalIgnoreCase)).ToList();
+    }
+
+    private void MemoryClerkSearch_TextChanged(object sender, TextChangedEventArgs e) => ApplyMemoryClerkFilter();
+
+    private void MemoryClerkSelectTop_Click(object sender, RoutedEventArgs e)
+    {
+        _isUpdatingMemoryClerkSelection = true;
+        var topClerks = new HashSet<string>(_memoryClerkItems.Take(5).Select(x => x.DisplayName));
+        foreach (var item in _memoryClerkItems)
+        {
+            item.IsSelected = topClerks.Contains(item.DisplayName);
+        }
+        _isUpdatingMemoryClerkSelection = false;
+        RefreshMemoryClerkListOrder();
+        _ = UpdateMemoryClerksChartFromPickerAsync();
+    }
+
+    private void MemoryClerkClearAll_Click(object sender, RoutedEventArgs e)
+    {
+        _isUpdatingMemoryClerkSelection = true;
+        var visible = (MemoryClerksList.ItemsSource as IEnumerable<SelectableItem>)?.ToList() ?? _memoryClerkItems;
+        foreach (var item in visible) item.IsSelected = false;
+        _isUpdatingMemoryClerkSelection = false;
+        RefreshMemoryClerkListOrder();
+        _ = UpdateMemoryClerksChartFromPickerAsync();
+    }
+
+    private void MemoryClerk_CheckChanged(object sender, RoutedEventArgs e)
+    {
+        if (_isUpdatingMemoryClerkSelection) return;
+        RefreshMemoryClerkListOrder();
+        _ = UpdateMemoryClerksChartFromPickerAsync();
+    }
+
+    private async System.Threading.Tasks.Task UpdateMemoryClerksChartFromPickerAsync()
+    {
+        try
+        {
+            var selected = _memoryClerkItems.Where(i => i.IsSelected).Take(20).ToList();
+
+            ClearChart(MemoryClerksChart);
+            ApplyDarkTheme(MemoryClerksChart);
+            _memoryClerksHover?.Clear();
+
+            if (selected.Count == 0)
+            {
+                MemoryClerksTotalText.Text = "--";
+                MemoryClerksTopText.Text = "--";
+                MemoryClerksChart.Refresh();
+                return;
+            }
+
+            var hoursBack = GetHoursBack();
+            DateTime? fromDate = null;
+            DateTime? toDate = null;
+            if (IsCustomRange)
+            {
+                var fromLocal = GetDateTimeFromPickers(FromDatePicker!, FromHourCombo, FromMinuteCombo);
+                var toLocal = GetDateTimeFromPickers(ToDatePicker!, ToHourCombo, ToMinuteCombo);
+                if (fromLocal.HasValue && toLocal.HasValue)
+                {
+                    fromDate = ServerTimeHelper.LocalToServerTime(fromLocal.Value);
+                    toDate = ServerTimeHelper.LocalToServerTime(toLocal.Value);
+                }
+            }
+
+            double globalMax = 0;
+            double nonBpTotal = 0;
+            string topNonBpClerk = "";
+            double topNonBpMb = 0;
+
+            for (int i = 0; i < selected.Count; i++)
+            {
+                var trend = await _dataService.GetMemoryClerkTrendAsync(_serverId, selected[i].DisplayName, hoursBack, fromDate, toDate);
+                if (trend.Count == 0) continue;
+
+                var times = trend.Select(t => t.CollectionTime.AddMinutes(UtcOffsetMinutes).ToOADate()).ToArray();
+                var values = trend.Select(t => t.MemoryMb).ToArray();
+
+                var plot = MemoryClerksChart.Plot.Add.Scatter(times, values);
+                plot.LegendText = selected[i].DisplayName;
+                plot.Color = ScottPlot.Color.FromHex(SeriesColors[i % SeriesColors.Length]);
+                _memoryClerksHover?.Add(plot, selected[i].DisplayName);
+
+                if (values.Length > 0) globalMax = Math.Max(globalMax, values.Max());
+
+                /* Summary: use latest value, exclude buffer pool */
+                var latestMb = values.Last();
+                if (!selected[i].DisplayName.Contains("BUFFERPOOL", StringComparison.OrdinalIgnoreCase))
+                {
+                    nonBpTotal += latestMb;
+                    if (latestMb > topNonBpMb)
+                    {
+                        topNonBpMb = latestMb;
+                        topNonBpClerk = selected[i].DisplayName;
+                    }
+                }
+            }
+
+            MemoryClerksChart.Plot.Axes.DateTimeTicksBottom();
+            ReapplyAxisColors(MemoryClerksChart);
+            MemoryClerksChart.Plot.YLabel("Memory (MB)");
+            SetChartYLimitsWithLegendPadding(MemoryClerksChart, 0, globalMax > 0 ? globalMax : 100);
+            ShowChartLegend(MemoryClerksChart);
+            MemoryClerksChart.Refresh();
+
+            /* Update summary panel */
+            MemoryClerksTotalText.Text = nonBpTotal >= 1024 ? $"{nonBpTotal / 1024:F1} GB" : $"{nonBpTotal:N0} MB";
+            if (!string.IsNullOrEmpty(topNonBpClerk))
+            {
+                var name = topNonBpClerk;
+                if (name.StartsWith("MEMORYCLERK_", StringComparison.OrdinalIgnoreCase))
+                    name = name.Substring(12);
+                MemoryClerksTopText.Text = topNonBpMb >= 1024 ? $"{name} ({topNonBpMb / 1024:F1} GB)" : $"{name} ({topNonBpMb:N0} MB)";
+            }
+            else
+            {
+                MemoryClerksTopText.Text = "--";
+            }
         }
         catch
         {

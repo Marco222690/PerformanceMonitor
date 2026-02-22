@@ -460,6 +460,9 @@ CREATE INDEX IF NOT EXISTS idx_waiting_tasks_time ON waiting_tasks(server_id, co
     public const string CreateBlockedProcessReportsIndex = @"
 CREATE INDEX IF NOT EXISTS idx_blocked_process_reports_time ON blocked_process_reports(server_id, collection_time)";
 
+    public const string CreateMemoryClerksIndex = @"
+CREATE INDEX IF NOT EXISTS idx_memory_clerks_time ON memory_clerks(server_id, collection_time)";
+
     public const string CreateDatabaseScopedConfigTable = @"
 CREATE TABLE IF NOT EXISTS database_scoped_config (
     config_id BIGINT PRIMARY KEY,
@@ -575,6 +578,7 @@ CREATE TABLE IF NOT EXISTS config_alert_log (
         yield return CreateMemoryGrantStatsIndex;
         yield return CreateWaitingTasksIndex;
         yield return CreateBlockedProcessReportsIndex;
+        yield return CreateMemoryClerksIndex;
         yield return CreateDatabaseScopedConfigIndex;
         yield return CreateTraceFlagsIndex;
         yield return CreateRunningJobsIndex;

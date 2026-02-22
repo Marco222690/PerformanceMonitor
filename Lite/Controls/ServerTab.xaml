@@ -565,6 +565,64 @@
                         </Grid>
                     </TabItem>
 
+                    <!-- Memory Clerks Sub-Tab -->
+                    <TabItem Header="Memory Clerks">
+                        <Grid Margin="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Clerk Type Picker -->
+                            <Border Grid.Column="0" Background="{StaticResource BackgroundDarkBrush}" CornerRadius="4" Padding="8" Margin="0,0,4,0">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Text="Select Memory Clerks" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,4">
+                                        <Button Content="Top Clerks" Click="MemoryClerkSelectTop_Click" Padding="6,2" Margin="0,0,4,0" FontSize="11"/>
+                                        <Button Content="Clear All" Click="MemoryClerkClearAll_Click" Padding="6,2" FontSize="11"/>
+                                        <TextBlock x:Name="MemoryClerkCountText" Text="0 selected" FontSize="10" Foreground="{StaticResource ForegroundMutedBrush}" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                    </StackPanel>
+                                    <TextBox Grid.Row="2" x:Name="MemoryClerkSearchBox" TextChanged="MemoryClerkSearch_TextChanged"
+                                             Margin="0,0,0,4" Padding="4,2"/>
+                                    <ListBox Grid.Row="3" x:Name="MemoryClerksList" Background="Transparent" BorderThickness="0">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                          Checked="MemoryClerk_CheckChanged" Unchecked="MemoryClerk_CheckChanged"
+                                                          Foreground="{StaticResource ForegroundBrush}" FontSize="11">
+                                                    <TextBlock Text="{Binding DisplayName}"/>
+                                                </CheckBox>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                </Grid>
+                            </Border>
+
+                            <!-- Chart + Summary -->
+                            <Grid Grid.Column="1">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <ScottPlot:WpfPlot Grid.Row="0" x:Name="MemoryClerksChart"/>
+                                <Border Grid.Row="1" Background="{StaticResource BackgroundDarkBrush}" CornerRadius="4" Padding="12,8" Margin="0,8,0,0">
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <TextBlock Text="Non-BP Total:" FontWeight="SemiBold" Foreground="{StaticResource ForegroundDimBrush}" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                        <TextBlock x:Name="MemoryClerksTotalText" Text="--" VerticalAlignment="Center" Margin="0,0,20,0"/>
+                                        <TextBlock Text="Top Non-BP Clerk:" FontWeight="SemiBold" Foreground="{StaticResource ForegroundDimBrush}" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                        <TextBlock x:Name="MemoryClerksTopText" Text="--" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                        </Grid>
+                    </TabItem>
+
                 </TabControl>
             </TabItem>
 

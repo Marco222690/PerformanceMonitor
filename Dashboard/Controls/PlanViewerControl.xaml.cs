@@ -158,7 +158,7 @@ public partial class PlanViewerControl : UserControl
         var border = new Border
         {
             Width = PlanLayoutEngine.NodeWidth,
-            Height = PlanLayoutEngine.NodeHeight,
+            MinHeight = PlanLayoutEngine.NodeHeightMin,
             Background = isExpensive
                 ? new SolidColorBrush(Color.FromArgb(0x30, 0xE5, 0x73, 0x73))
                 : (Brush)FindResource("BackgroundLightBrush"),
@@ -253,6 +253,50 @@ public partial class PlanViewerControl : UserControl
             HorizontalAlignment = HorizontalAlignment.Center
         });
 
+        // Actual plan stats: elapsed time, CPU time, and row counts
+        if (node.HasActualStats)
+        {
+            var mutedBrush = (Brush)FindResource("ForegroundMutedBrush");
+
+            // Elapsed time
+            var elapsedSec = node.ActualElapsedMs / 1000.0;
+            stack.Children.Add(new TextBlock
+            {
+                Text = $"{elapsedSec:F3}s",
+                FontSize = 10,
+                Foreground = mutedBrush,
+                TextAlignment = TextAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center
+            });
+
+            // CPU time
+            var cpuSec = node.ActualCPUMs / 1000.0;
+            stack.Children.Add(new TextBlock
+            {
+                Text = $"CPU: {cpuSec:F3}s",
+                FontSize = 9,
+                Foreground = mutedBrush,
+                TextAlignment = TextAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center
+            });
+
+            // Actual rows of Estimated rows (accuracy %)
+            var estRows = node.EstimateRows;
+            var accuracy = estRows > 0
+                ? $" ({node.ActualRows / estRows * 100:F0}%)"
+                : "";
+            stack.Children.Add(new TextBlock
+            {
+                Text = $"{node.ActualRows:N0} of {estRows:N0}{accuracy}",
+                FontSize = 9,
+                Foreground = mutedBrush,
+                TextAlignment = TextAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                MaxWidth = PlanLayoutEngine.NodeWidth - 16
+            });
+        }
+
         // Object name — show full object name, use ellipsis for overflow
         if (!string.IsNullOrEmpty(node.ObjectName))
         {
@@ -291,9 +335,9 @@ public partial class PlanViewerControl : UserControl
     private WpfPath CreateElbowConnector(PlanNode parent, PlanNode child)
     {
         var parentRight = parent.X + PlanLayoutEngine.NodeWidth;
-        var parentCenterY = parent.Y + PlanLayoutEngine.NodeHeight / 2;
+        var parentCenterY = parent.Y + PlanLayoutEngine.GetNodeHeight(parent) / 2;
         var childLeft = child.X;
-        var childCenterY = child.Y + PlanLayoutEngine.NodeHeight / 2;
+        var childCenterY = child.Y + PlanLayoutEngine.GetNodeHeight(child) / 2;
 
         // Arrow thickness based on row estimate (logarithmic)
         var rows = child.HasActualStats ? child.ActualRows : child.EstimateRows;

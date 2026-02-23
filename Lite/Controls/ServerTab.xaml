@@ -18,8 +18,8 @@
                 <Separator/>
                 <MenuItem Header="Export to CSV..." Click="ExportToCsv_Click"/>
                 <Separator/>
-                <MenuItem Header="View Estimated Plan" Click="ViewEstimatedPlan_Click"/>
-                <MenuItem Header="View Actual Plan" IsEnabled="False" ToolTip="Coming soon — executes query to capture actual plan"/>
+                <MenuItem Header="View Plan" Click="ViewEstimatedPlan_Click"/>
+                <MenuItem Header="Get Actual Plan" Click="GetActualPlan_Click"/>
             </ContextMenu>
 
             <Style x:Key="GridRowStyle" TargetType="DataGridRow">

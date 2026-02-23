@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Text;
 using System.Windows;
@@ -2247,8 +2248,10 @@ public partial class ServerTab : UserControl
         switch (grid.CurrentItem)
         {
             case QuerySnapshotRow snap:
-                planXml = snap.QueryPlan;
-                label = $"Est Plan - SPID {snap.SessionId}";
+                planXml = snap.LiveQueryPlan ?? snap.QueryPlan;
+                label = snap.LiveQueryPlan != null
+                    ? $"Plan - SPID {snap.SessionId}"
+                    : $"Est Plan - SPID {snap.SessionId}";
                 break;
             case QueryStatsRow stats:
                 planXml = stats.QueryPlan;
@@ -2289,6 +2292,110 @@ public partial class ServerTab : UserControl
         {
             PlanViewerContent.LoadPlan(planXml, label);
             PlanViewerTabItem.IsSelected = true;
+        }
+    }
+
+    private async void GetActualPlan_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem menuItem) return;
+        var grid = FindParentDataGrid(menuItem);
+        if (grid?.CurrentItem == null) return;
+
+        string? queryText = null;
+        string? databaseName = null;
+        string? planXml = null;
+        string? isolationLevel = null;
+        string label = "Actual Plan";
+
+        switch (grid.CurrentItem)
+        {
+            case QuerySnapshotRow snapshot:
+                queryText = snapshot.QueryText;
+                databaseName = snapshot.DatabaseName;
+                planXml = snapshot.LiveQueryPlan ?? snapshot.QueryPlan;
+                isolationLevel = snapshot.TransactionIsolationLevel;
+                label = $"Actual Plan - SPID {snapshot.SessionId}";
+                break;
+            case QueryStatsRow stats:
+                queryText = stats.QueryText;
+                databaseName = stats.DatabaseName;
+                label = $"Actual Plan - {stats.QueryHash}";
+                if (!string.IsNullOrEmpty(stats.QueryHash))
+                {
+                    try { planXml = await FetchPlanByHash(stats.QueryHash); }
+                    catch { }
+                }
+                break;
+            case QueryStoreRow qs:
+                queryText = qs.QueryText;
+                databaseName = qs.DatabaseName;
+                label = $"Actual Plan - QS {qs.QueryId}";
+                if (qs.PlanId > 0)
+                {
+                    try
+                    {
+                        var connStr = _server.GetConnectionString(_credentialService);
+                        planXml = await LocalDataService.FetchQueryStorePlanAsync(connStr, qs.DatabaseName, qs.PlanId);
+                    }
+                    catch { }
+                }
+                break;
+        }
+
+        if (string.IsNullOrWhiteSpace(queryText))
+        {
+            MessageBox.Show("No query text available for this row.", "No Query Text",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var result = MessageBox.Show(
+            $"You are about to execute this query against {_server.ServerName} in database [{databaseName ?? "default"}].\n\n" +
+            "Make sure you understand what the query does before proceeding.\n" +
+            "The query will execute with SET STATISTICS XML ON to capture the actual plan.\n" +
+            "All data results will be discarded.",
+            "Get Actual Plan",
+            MessageBoxButton.OKCancel,
+            MessageBoxImage.Warning);
+
+        if (result != MessageBoxResult.OK) return;
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(120));
+
+        try
+        {
+            var connectionString = _server.GetConnectionString(_credentialService);
+
+            var actualPlanXml = await ActualPlanExecutor.ExecuteForActualPlanAsync(
+                connectionString,
+                databaseName ?? "",
+                queryText,
+                planXml,
+                isolationLevel,
+                isAzureSqlDb: false,
+                timeoutSeconds: 120,
+                cts.Token);
+
+            if (!string.IsNullOrEmpty(actualPlanXml))
+            {
+                PlanViewerContent.LoadPlan(actualPlanXml, label);
+                PlanViewerTabItem.IsSelected = true;
+            }
+            else
+            {
+                MessageBox.Show("Query executed but no execution plan was captured.",
+                    "No Plan", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            MessageBox.Show("The query was cancelled or timed out.",
+                "Cancelled", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to get actual plan:\n\n{ex.Message}",
+                "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 

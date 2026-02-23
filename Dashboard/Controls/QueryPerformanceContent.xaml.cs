@@ -13,6 +13,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -725,6 +726,10 @@ namespace PerformanceMonitorDashboard.Controls
                     planXml = snap.QueryPlan;
                     label = $"Est Plan - SPID {snap.SessionId}";
                     break;
+                case LiveQueryItem live when !string.IsNullOrEmpty(live.LiveQueryPlan):
+                    planXml = live.LiveQueryPlan;
+                    label = $"Plan - SPID {live.SessionId}";
+                    break;
                 case LiveQueryItem live when !string.IsNullOrEmpty(live.QueryPlan):
                     planXml = live.QueryPlan;
                     label = $"Est Plan - SPID {live.SessionId}";
@@ -745,6 +750,107 @@ namespace PerformanceMonitorDashboard.Controls
 
             if (planXml != null)
                 ViewPlanRequested?.Invoke(planXml, label);
+        }
+
+        private async void GetActualPlan_Click(object sender, RoutedEventArgs e)
+        {
+            if (_databaseService == null) return;
+
+            var item = GetContextMenuDataItem(sender);
+            if (item == null) return;
+
+            string? queryText = null;
+            string? databaseName = null;
+            string? planXml = null;
+            string? isolationLevel = null;
+            string label = "Actual Plan";
+
+            switch (item)
+            {
+                case QuerySnapshotItem snap:
+                    queryText = snap.QueryText;
+                    databaseName = snap.DatabaseName;
+                    planXml = snap.QueryPlan;
+                    label = $"Actual Plan - SPID {snap.SessionId}";
+                    break;
+                case LiveQueryItem live:
+                    queryText = live.QueryText;
+                    databaseName = live.DatabaseName;
+                    planXml = live.LiveQueryPlan ?? live.QueryPlan;
+                    label = $"Actual Plan - SPID {live.SessionId}";
+                    break;
+                case QueryStatsItem stats:
+                    queryText = stats.QueryText;
+                    databaseName = stats.DatabaseName;
+                    planXml = stats.QueryPlanXml;
+                    label = $"Actual Plan - {stats.QueryHash}";
+                    break;
+                case QueryStoreItem qs:
+                    queryText = qs.QueryText;
+                    databaseName = qs.DatabaseName;
+                    planXml = qs.QueryPlanXml;
+                    label = $"Actual Plan - QS {qs.QueryId}";
+                    break;
+            }
+
+            if (string.IsNullOrWhiteSpace(queryText))
+            {
+                MessageBox.Show("No query text available for this row.", "No Query Text",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var result = MessageBox.Show(
+                $"You are about to execute this query against the monitored server in database [{databaseName ?? "default"}].\n\n" +
+                "Make sure you understand what the query does before proceeding.\n" +
+                "The query will execute with SET STATISTICS XML ON to capture the actual plan.\n" +
+                "All data results will be discarded.",
+                "Get Actual Plan",
+                MessageBoxButton.OKCancel,
+                MessageBoxImage.Warning);
+
+            if (result != MessageBoxResult.OK) return;
+
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(120));
+
+            try
+            {
+                _statusCallback?.Invoke("Executing query for actual plan...");
+
+                var actualPlanXml = await ActualPlanExecutor.ExecuteForActualPlanAsync(
+                    _databaseService.ConnectionString,
+                    databaseName ?? "",
+                    queryText,
+                    planXml,
+                    isolationLevel,
+                    isAzureSqlDb: false,
+                    timeoutSeconds: 120,
+                    cts.Token);
+
+                if (!string.IsNullOrEmpty(actualPlanXml))
+                {
+                    ViewPlanRequested?.Invoke(actualPlanXml, label);
+                    _statusCallback?.Invoke("Actual plan captured successfully.");
+                }
+                else
+                {
+                    MessageBox.Show("Query executed but no execution plan was captured.",
+                        "No Plan", MessageBoxButton.OK, MessageBoxImage.Information);
+                    _statusCallback?.Invoke("No actual plan captured.");
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                MessageBox.Show("The query was cancelled or timed out.",
+                    "Cancelled", MessageBoxButton.OK, MessageBoxImage.Information);
+                _statusCallback?.Invoke("Actual plan capture cancelled.");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to get actual plan:\n\n{ex.Message}",
+                    "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                _statusCallback?.Invoke("Actual plan capture failed.");
+            }
         }
 
         private static object? GetContextMenuDataItem(object sender)

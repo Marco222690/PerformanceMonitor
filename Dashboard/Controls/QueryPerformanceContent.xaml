@@ -32,8 +32,8 @@
                     <MenuItem.Icon><TextBlock Text="📊"/></MenuItem.Icon>
                 </MenuItem>
                 <Separator/>
-                <MenuItem Header="View Estimated Plan" Click="ViewEstimatedPlan_Click"/>
-                <MenuItem Header="View Actual Plan" IsEnabled="False" ToolTip="Coming soon — executes query to capture actual plan"/>
+                <MenuItem Header="View Plan" Click="ViewEstimatedPlan_Click"/>
+                <MenuItem Header="Get Actual Plan" Click="GetActualPlan_Click"/>
             </ContextMenu>
 
             <Style x:Key="DefaultRowStyle" TargetType="DataGridRow">

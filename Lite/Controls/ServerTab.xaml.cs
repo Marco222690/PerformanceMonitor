@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Text;
 using System.Windows;
@@ -80,6 +81,7 @@ public partial class ServerTab : UserControl
     private DataGridFilterManager<CollectorHealthRow>? _collectionHealthFilterMgr;
     private DataGridFilterManager<CollectionLogRow>? _collectionLogFilterMgr;
     private DateTime? _dailySummaryDate; // null = today
+    private CancellationTokenSource? _actualPlanCts;
 
     private static readonly HashSet<string> _defaultPerfmonCounters = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -2233,6 +2235,267 @@ public partial class ServerTab : UserControl
     {
         if (sender is not Button btn || btn.DataContext is not QuerySnapshotRow row || row.LiveQueryPlan == null) return;
         SavePlanFile(row.LiveQueryPlan, $"ActualPlan_Session{row.SessionId}");
+    }
+
+    private void ShowPlanLoading(string label)
+    {
+        PlanLoadingLabel.Text = $"Executing: {label}";
+        PlanEmptyState.Visibility = Visibility.Collapsed;
+        PlanTabControl.Visibility = Visibility.Collapsed;
+        PlanLoadingState.Visibility = Visibility.Visible;
+        PlanViewerTabItem.IsSelected = true;
+    }
+
+    private void HidePlanLoading()
+    {
+        PlanLoadingState.Visibility = Visibility.Collapsed;
+        if (PlanTabControl.Items.Count > 0)
+            PlanTabControl.Visibility = Visibility.Visible;
+        else
+            PlanEmptyState.Visibility = Visibility.Visible;
+    }
+
+    private void OpenPlanTab(string planXml, string label, string? queryText = null)
+    {
+        HidePlanLoading();
+        var viewer = new PlanViewerControl();
+        viewer.LoadPlan(planXml, label, queryText);
+
+        var header = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
+        header.Children.Add(new TextBlock
+        {
+            Text = label.Length > 30 ? label[..30] + "\u2026" : label,
+            VerticalAlignment = System.Windows.VerticalAlignment.Center,
+            ToolTip = label
+        });
+        var closeBtn = new Button
+        {
+            Style = (Style)FindResource("TabCloseButton")
+        };
+        header.Children.Add(closeBtn);
+
+        var tab = new TabItem { Header = header, Content = viewer };
+        closeBtn.Tag = tab;
+        closeBtn.Click += ClosePlanTab_Click;
+
+        PlanTabControl.Items.Add(tab);
+        PlanTabControl.SelectedItem = tab;
+        PlanEmptyState.Visibility = Visibility.Collapsed;
+        PlanTabControl.Visibility = Visibility.Visible;
+    }
+
+    private void ClosePlanTab_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is TabItem tab)
+        {
+            PlanTabControl.Items.Remove(tab);
+            if (PlanTabControl.Items.Count == 0)
+            {
+                PlanTabControl.Visibility = Visibility.Collapsed;
+                PlanEmptyState.Visibility = Visibility.Visible;
+            }
+        }
+    }
+
+    private void CancelPlanButton_Click(object sender, RoutedEventArgs e)
+    {
+        _actualPlanCts?.Cancel();
+    }
+
+    private async void ViewEstimatedPlan_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem menuItem) return;
+        var grid = FindParentDataGrid(menuItem);
+        if (grid?.CurrentItem == null) return;
+
+        string? planXml = null;
+        string? queryText = null;
+        string label = "Estimated Plan";
+
+        switch (grid.CurrentItem)
+        {
+            case QuerySnapshotRow snap:
+                planXml = snap.LiveQueryPlan ?? snap.QueryPlan;
+                queryText = snap.QueryText;
+                label = snap.LiveQueryPlan != null
+                    ? $"Plan - SPID {snap.SessionId}"
+                    : $"Est Plan - SPID {snap.SessionId}";
+                break;
+            case QueryStatsRow stats:
+                planXml = stats.QueryPlan;
+                queryText = stats.QueryText;
+                label = $"Est Plan - {stats.QueryHash}";
+                // Fetch on demand if not already loaded
+                if (string.IsNullOrEmpty(planXml))
+                    planXml = await FetchPlanByHash(stats.QueryHash);
+                break;
+            case QueryStatsHistoryRow hist:
+                planXml = hist.QueryPlan;
+                label = "Est Plan - History";
+                break;
+            case ProcedureStatsRow proc:
+                label = $"Est Plan - {proc.FullName}";
+                queryText = proc.FullName;
+                try
+                {
+                    var connStr = _server.GetConnectionString(_credentialService);
+                    planXml = await LocalDataService.FetchProcedurePlanOnDemandAsync(
+                        connStr, proc.DatabaseName, proc.SchemaName, proc.ObjectName);
+                }
+                catch { }
+                break;
+            case QueryStoreRow qs:
+                label = $"Est Plan - QS {qs.QueryId}";
+                queryText = qs.QueryText;
+                if (qs.PlanId > 0)
+                {
+                    try
+                    {
+                        var connStr = _server.GetConnectionString(_credentialService);
+                        planXml = await LocalDataService.FetchQueryStorePlanAsync(connStr, qs.DatabaseName, qs.PlanId);
+                    }
+                    catch { }
+                }
+                break;
+        }
+
+        if (!string.IsNullOrEmpty(planXml))
+        {
+            OpenPlanTab(planXml, label, queryText);
+            PlanViewerTabItem.IsSelected = true;
+        }
+    }
+
+    private async void GetActualPlan_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem menuItem) return;
+        var grid = FindParentDataGrid(menuItem);
+        if (grid?.CurrentItem == null) return;
+
+        string? queryText = null;
+        string? databaseName = null;
+        string? planXml = null;
+        string? isolationLevel = null;
+        string label = "Actual Plan";
+
+        switch (grid.CurrentItem)
+        {
+            case QuerySnapshotRow snapshot:
+                queryText = snapshot.QueryText;
+                databaseName = snapshot.DatabaseName;
+                planXml = snapshot.LiveQueryPlan ?? snapshot.QueryPlan;
+                isolationLevel = snapshot.TransactionIsolationLevel;
+                label = $"Actual Plan - SPID {snapshot.SessionId}";
+                break;
+            case QueryStatsRow stats:
+                queryText = stats.QueryText;
+                databaseName = stats.DatabaseName;
+                label = $"Actual Plan - {stats.QueryHash}";
+                if (!string.IsNullOrEmpty(stats.QueryHash))
+                {
+                    try { planXml = await FetchPlanByHash(stats.QueryHash); }
+                    catch { }
+                }
+                break;
+            case QueryStoreRow qs:
+                queryText = qs.QueryText;
+                databaseName = qs.DatabaseName;
+                label = $"Actual Plan - QS {qs.QueryId}";
+                if (qs.PlanId > 0)
+                {
+                    try
+                    {
+                        var connStr = _server.GetConnectionString(_credentialService);
+                        planXml = await LocalDataService.FetchQueryStorePlanAsync(connStr, qs.DatabaseName, qs.PlanId);
+                    }
+                    catch { }
+                }
+                break;
+        }
+
+        if (string.IsNullOrWhiteSpace(queryText))
+        {
+            MessageBox.Show("No query text available for this row.", "No Query Text",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var result = MessageBox.Show(
+            $"You are about to execute this query against {_server.ServerName} in database [{databaseName ?? "default"}].\n\n" +
+            "Make sure you understand what the query does before proceeding.\n" +
+            "The query will execute with SET STATISTICS XML ON to capture the actual plan.\n" +
+            "All data results will be discarded.",
+            "Get Actual Plan",
+            MessageBoxButton.OKCancel,
+            MessageBoxImage.Warning);
+
+        if (result != MessageBoxResult.OK) return;
+
+        ShowPlanLoading(label);
+
+        _actualPlanCts?.Dispose();
+        _actualPlanCts = new CancellationTokenSource();
+
+        try
+        {
+            var connectionString = _server.GetConnectionString(_credentialService);
+
+            var actualPlanXml = await ActualPlanExecutor.ExecuteForActualPlanAsync(
+                connectionString,
+                databaseName ?? "",
+                queryText,
+                planXml,
+                isolationLevel,
+                isAzureSqlDb: false,
+                timeoutSeconds: 0,
+                _actualPlanCts.Token);
+
+            if (!string.IsNullOrEmpty(actualPlanXml))
+            {
+                OpenPlanTab(actualPlanXml, label, queryText);
+                PlanViewerTabItem.IsSelected = true;
+            }
+            else
+            {
+                MessageBox.Show("Query executed but no execution plan was captured.",
+                    "No Plan", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            MessageBox.Show("The query was cancelled or timed out.",
+                "Cancelled", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to get actual plan:\n\n{ex.Message}",
+                "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            HidePlanLoading();
+        }
+    }
+
+    private async Task<string?> FetchPlanByHash(string queryHash)
+    {
+        if (string.IsNullOrEmpty(queryHash)) return null;
+
+        // Try DuckDB cache first
+        try
+        {
+            var plan = await _dataService.GetCachedQueryPlanAsync(_serverId, queryHash);
+            if (!string.IsNullOrEmpty(plan)) return plan;
+        }
+        catch { }
+
+        // Fall back to live server
+        try
+        {
+            var connStr = _server.GetConnectionString(_credentialService);
+            return await LocalDataService.FetchQueryPlanOnDemandAsync(connStr, queryHash);
+        }
+        catch { return null; }
     }
 
     private async void LiveSnapshot_Click(object sender, RoutedEventArgs e)

@@ -33,6 +33,11 @@ namespace PerformanceMonitorDashboard.Services
         }
 
         /// <summary>
+        /// The connection string used by this service (for re-use by actual plan execution).
+        /// </summary>
+        public string ConnectionString => _connectionString;
+
+        /// <summary>
         /// Opens a throttled database connection. The semaphore is released when the connection is disposed.
         /// </summary>
         private async Task<ThrottledConnection> OpenThrottledConnectionAsync()

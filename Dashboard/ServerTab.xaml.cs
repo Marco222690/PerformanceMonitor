@@ -119,12 +119,90 @@ namespace PerformanceMonitorDashboard
             ConfigChangesTab.Initialize(_databaseService);
             MemoryTab.Initialize(_databaseService);
             PerformanceTab.Initialize(_databaseService, s => StatusText.Text = s);
+            PerformanceTab.ViewPlanRequested += (planXml, label, queryText) =>
+            {
+                OpenPlanTab(planXml, label, queryText);
+                PlanViewerTabItem.IsSelected = true;
+            };
+            PerformanceTab.ActualPlanStarted += (label) =>
+            {
+                ShowPlanLoading(label);
+            };
+            PerformanceTab.ActualPlanFinished += () =>
+            {
+                HidePlanLoading();
+            };
             SystemEventsContent.Initialize(_databaseService);
             ResourceMetricsContent.Initialize(_databaseService);
 
             // Set default time range on UserControls based on user preferences
             var prefs = _preferencesService.GetPreferences();
             CriticalIssuesTab.SetTimeRange(prefs.DefaultHoursBack);
+        }
+
+        private void ShowPlanLoading(string label)
+        {
+            PlanLoadingLabel.Text = $"Executing: {label}";
+            PlanEmptyState.Visibility = Visibility.Collapsed;
+            PlanTabControl.Visibility = Visibility.Collapsed;
+            PlanLoadingState.Visibility = Visibility.Visible;
+            PlanViewerTabItem.IsSelected = true;
+        }
+
+        private void HidePlanLoading()
+        {
+            PlanLoadingState.Visibility = Visibility.Collapsed;
+            if (PlanTabControl.Items.Count > 0)
+                PlanTabControl.Visibility = Visibility.Visible;
+            else
+                PlanEmptyState.Visibility = Visibility.Visible;
+        }
+
+        private void CancelPlanButton_Click(object sender, RoutedEventArgs e)
+        {
+            PerformanceTab.CancelActualPlan();
+        }
+
+        private void OpenPlanTab(string planXml, string label, string? queryText = null)
+        {
+            HidePlanLoading();
+            var viewer = new Controls.PlanViewerControl();
+            viewer.LoadPlan(planXml, label, queryText);
+
+            var header = new StackPanel { Orientation = Orientation.Horizontal };
+            header.Children.Add(new TextBlock
+            {
+                Text = label.Length > 30 ? label[..30] + "\u2026" : label,
+                VerticalAlignment = VerticalAlignment.Center,
+                ToolTip = label
+            });
+            var closeBtn = new Button
+            {
+                Style = (Style)FindResource("TabCloseButton")
+            };
+            header.Children.Add(closeBtn);
+
+            var tab = new TabItem { Header = header, Content = viewer };
+            closeBtn.Tag = tab;
+            closeBtn.Click += ClosePlanTab_Click;
+
+            PlanTabControl.Items.Add(tab);
+            PlanTabControl.SelectedItem = tab;
+            PlanEmptyState.Visibility = Visibility.Collapsed;
+            PlanTabControl.Visibility = Visibility.Visible;
+        }
+
+        private void ClosePlanTab_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is TabItem tab)
+            {
+                PlanTabControl.Items.Remove(tab);
+                if (PlanTabControl.Items.Count == 0)
+                {
+                    PlanTabControl.Visibility = Visibility.Collapsed;
+                    PlanEmptyState.Visibility = Visibility.Visible;
+                }
+            }
         }
 
         private void InitializeDefaultTimeRanges()

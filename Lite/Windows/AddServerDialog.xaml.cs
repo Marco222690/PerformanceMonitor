@@ -215,7 +215,7 @@ public partial class AddServerDialog : Window
         }
     }
 
-    private void SaveButton_Click(object sender, RoutedEventArgs e)
+    private async void SaveButton_Click(object sender, RoutedEventArgs e)
     {
         var serverName = ServerNameBox.Text.Trim();
         if (string.IsNullOrEmpty(serverName))
@@ -256,6 +256,86 @@ public partial class AddServerDialog : Window
                 StatusText.Text = "Username is required for SQL Server authentication.";
                 return;
             }
+        }
+
+        // Test connection when data collection is enabled
+        if (EnabledCheckBox.IsChecked == true)
+        {
+            SaveButton.IsEnabled = false;
+
+            if (EntraMfaAuthRadio.IsChecked == true)
+            {
+                StatusText.Text = "Testing connection — please complete authentication in the popup window...";
+            }
+            else
+            {
+                StatusText.Text = "Testing connection before saving...";
+            }
+
+            bool connected = false;
+            string? errorMessage = null;
+
+            try
+            {
+                var dbName = DatabaseNameBox.Text.Trim();
+                var builder = new SqlConnectionStringBuilder
+                {
+                    DataSource = serverName,
+                    InitialCatalog = string.IsNullOrEmpty(dbName) ? "master" : dbName,
+                    ApplicationName = "PerformanceMonitorLite",
+                    ConnectTimeout = 10,
+                    TrustServerCertificate = TrustCertCheckBox.IsChecked == true,
+                    Encrypt = ParseEncryptOption(GetSelectedEncryptMode())
+                };
+
+                if (WindowsAuthRadio.IsChecked == true)
+                {
+                    builder.IntegratedSecurity = true;
+                }
+                else if (SqlAuthRadio.IsChecked == true)
+                {
+                    builder.IntegratedSecurity = false;
+                    builder.UserID = username;
+                    builder.Password = password;
+                }
+                else if (EntraMfaAuthRadio.IsChecked == true)
+                {
+                    builder.IntegratedSecurity = false;
+                    builder.Authentication = SqlAuthenticationMethod.ActiveDirectoryInteractive;
+                    if (!string.IsNullOrEmpty(username))
+                        builder.UserID = username;
+                }
+
+                using var connection = new SqlConnection(builder.ConnectionString);
+                await connection.OpenAsync();
+                connected = true;
+            }
+            catch (Exception ex)
+            {
+                connected = false;
+                errorMessage = ex.Message;
+
+                if (AddedServer != null && EntraMfaAuthRadio.IsChecked == true && MfaAuthenticationHelper.IsMfaCancelledException(ex))
+                {
+                    var status = _serverManager.GetConnectionStatus(AddedServer.Id);
+                    status.UserCancelledMfa = true;
+                    StatusText.Text = "Authentication cancelled by user. Click Save to try again, or uncheck \"Enable data collection for this server\" to save without connecting.";
+                    SaveButton.IsEnabled = true;
+                    return;
+                }
+            }
+            finally
+            {
+                SaveButton.IsEnabled = true;
+            }
+
+            if (!connected)
+            {
+                StatusText.Text = $"Failed to connect: {errorMessage}\n\nTo save this server without a working connection, uncheck \"Enable data collection for this server\".";
+                return;
+            }
+
+            StatusText.Text = string.Empty;
         }
 
         try

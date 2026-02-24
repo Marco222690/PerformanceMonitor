@@ -48,6 +48,7 @@ namespace PerformanceMonitorDashboard
                 _ => 0 // Optional
             };
             TrustServerCertificateCheckBox.IsChecked = existingServer.TrustServerCertificate;
+            IsEnabledCheckBox.IsChecked = existingServer.IsEnabled;
 
             if (existingServer.UseWindowsAuth)
             {
@@ -150,7 +151,7 @@ namespace PerformanceMonitorDashboard
             }
         }
 
-        private void Save_Click(object sender, RoutedEventArgs e)
+        private async void Save_Click(object sender, RoutedEventArgs e)
         {
             if (string.IsNullOrWhiteSpace(ServerNameTextBox.Text))
             {
@@ -177,6 +178,59 @@ namespace PerformanceMonitorDashboard
                 }
             }
 
+            // Test connection when data collection is enabled
+            if (IsEnabledCheckBox.IsChecked == true)
+            {
+                SaveButton.IsEnabled = false;
+                StatusText.Text = "Testing connection...";
+                StatusText.Visibility = System.Windows.Visibility.Visible;
+
+                bool connected;
+                string? errorMessage = null;
+                try
+                {
+                    var cs = DatabaseService.BuildConnectionString(
+                        ServerNameTextBox.Text.Trim(),
+                        WindowsAuthRadio.IsChecked == true,
+                        UsernameTextBox.Text.Trim(),
+                        PasswordBox.Password,
+                        GetSelectedEncryptMode(),
+                        TrustServerCertificateCheckBox.IsChecked == true
+                    ).ConnectionString;
+
+                    var dbService = new DatabaseService(cs);
+                    connected = await dbService.TestConnectionAsync();
+                }
+                catch (Exception ex)
+                {
+                    connected = false;
+                    errorMessage = ex.Message;
+                }
+                finally
+                {
+                    SaveButton.IsEnabled = true;
+                }
+
+                if (!connected)
+                {
+                    StatusText.Text = string.Empty;
+                    StatusText.Visibility = System.Windows.Visibility.Collapsed;
+
+                    var detail = errorMessage != null ? $"\n\nError: {errorMessage}" : string.Empty;
+                    MessageBox.Show(
+                        $"Failed to connect to {ServerNameTextBox.Text}.{detail}\n\n" +
+                        "To save this server without a working connection, uncheck \"Enable data collection for this server\".",
+                        "Connection Failed",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error
+                    );
+                    return;
+                }
+
+                StatusText.Text = string.Empty;
+                StatusText.Visibility = System.Windows.Visibility.Collapsed;
+            }
+
             // Use server name as display name if not provided
             var displayName = string.IsNullOrWhiteSpace(DisplayNameTextBox.Text)
                 ? ServerNameTextBox.Text.Trim()
@@ -189,6 +243,7 @@ namespace PerformanceMonitorDashboard
                 ServerConnection.UseWindowsAuth = WindowsAuthRadio.IsChecked == true;
                 ServerConnection.Description = DescriptionTextBox.Text.Trim();
                 ServerConnection.IsFavorite = IsFavoriteCheckBox.IsChecked == true;
+                ServerConnection.IsEnabled = IsEnabledCheckBox.IsChecked == true;
                 ServerConnection.EncryptMode = GetSelectedEncryptMode();
                 ServerConnection.TrustServerCertificate = TrustServerCertificateCheckBox.IsChecked == true;
             }
@@ -201,6 +256,7 @@ namespace PerformanceMonitorDashboard
                     UseWindowsAuth = WindowsAuthRadio.IsChecked == true,
                     Description = DescriptionTextBox.Text.Trim(),
                     IsFavorite = IsFavoriteCheckBox.IsChecked == true,
+                    IsEnabled = IsEnabledCheckBox.IsChecked == true,
                     CreatedDate = DateTime.Now,
                     LastConnected = DateTime.Now,
                     EncryptMode = GetSelectedEncryptMode(),

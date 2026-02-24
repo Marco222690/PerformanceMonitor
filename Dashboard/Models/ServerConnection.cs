@@ -23,6 +23,7 @@ namespace PerformanceMonitorDashboard.Models
         public DateTime CreatedDate { get; set; } = DateTime.Now;
         public DateTime LastConnected { get; set; } = DateTime.Now;
         public bool IsFavorite { get; set; }
+        public bool IsEnabled { get; set; } = true;
 
         /// <summary>
         /// Encryption mode for the connection. Valid values: Optional, Mandatory, Strict.

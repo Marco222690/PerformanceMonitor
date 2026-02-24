@@ -741,7 +741,7 @@ namespace PerformanceMonitorDashboard.Controls
             }
         }
 
-        private void ViewEstimatedPlan_Click(object sender, RoutedEventArgs e)
+        private async void ViewEstimatedPlan_Click(object sender, RoutedEventArgs e)
         {
             var item = GetContextMenuDataItem(sender);
             if (item == null) return;
@@ -777,10 +777,23 @@ namespace PerformanceMonitorDashboard.Controls
                     queryText = proc.ObjectName;
                     label = $"Est Plan - {proc.ProcedureName}";
                     break;
-                case QueryStoreItem qs when !string.IsNullOrEmpty(qs.QueryPlanXml):
+                case QueryStoreItem qs:
+                    if (string.IsNullOrEmpty(qs.QueryPlanXml) && _databaseService != null)
+                    {
+                        qs.QueryPlanXml = await _databaseService.GetQueryStorePlanXmlAsync(qs.DatabaseName, qs.QueryId);
+                    }
                     planXml = qs.QueryPlanXml;
                     queryText = qs.QueryText;
                     label = $"Est Plan - QS {qs.QueryId}";
+                    break;
+                case QueryStoreRegressionItem reg:
+                    if (string.IsNullOrEmpty(reg.QueryPlanXml) && _databaseService != null)
+                    {
+                        reg.QueryPlanXml = await _databaseService.GetQueryStorePlanXmlAsync(reg.DatabaseName, reg.QueryId);
+                    }
+                    planXml = reg.QueryPlanXml;
+                    queryText = reg.QueryTextSample;
+                    label = $"Est Plan - QS {reg.QueryId}";
                     break;
             }
 
@@ -824,8 +837,18 @@ namespace PerformanceMonitorDashboard.Controls
                 case QueryStoreItem qs:
                     queryText = qs.QueryText;
                     databaseName = qs.DatabaseName;
+                    if (string.IsNullOrEmpty(qs.QueryPlanXml))
+                        qs.QueryPlanXml = await _databaseService.GetQueryStorePlanXmlAsync(qs.DatabaseName, qs.QueryId);
                     planXml = qs.QueryPlanXml;
                     label = $"Actual Plan - QS {qs.QueryId}";
+                    break;
+                case QueryStoreRegressionItem reg:
+                    queryText = reg.QueryTextSample;
+                    databaseName = reg.DatabaseName;
+                    if (string.IsNullOrEmpty(reg.QueryPlanXml))
+                        reg.QueryPlanXml = await _databaseService.GetQueryStorePlanXmlAsync(reg.DatabaseName, reg.QueryId);
+                    planXml = reg.QueryPlanXml;
+                    label = $"Actual Plan - QS {reg.QueryId}";
                     break;
             }
 

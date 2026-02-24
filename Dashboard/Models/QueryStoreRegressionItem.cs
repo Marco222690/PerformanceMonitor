@@ -21,5 +21,6 @@ namespace PerformanceMonitorDashboard.Models
         public string Severity { get; set; } = string.Empty;
         public string QueryTextSample { get; set; } = string.Empty;
         public DateTime? LastExecutionTime { get; set; }
+        public string? QueryPlanXml { get; set; }
     }
 }

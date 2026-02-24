@@ -62,6 +62,8 @@
                 <DataGridTextColumn Header="Avg Physical Reads" Binding="{Binding AvgPhysicalReads, StringFormat=N1}" ElementStyle="{StaticResource NumericCell}" Width="120"/>
                 <DataGridTextColumn Header="Avg Rows" Binding="{Binding AvgRowcount, StringFormat=N1}" ElementStyle="{StaticResource NumericCell}" Width="90"/>
                 <DataGridTextColumn Header="Last Execution" Binding="{Binding LastExecutionTimeLocal}" Width="130"/>
+                <DataGridTextColumn Header="Min DOP" Binding="{Binding MinDop}" Width="70"/>
+                <DataGridTextColumn Header="Max DOP" Binding="{Binding MaxDop}" Width="70"/>
                 <DataGridTemplateColumn Header="Plan" Width="Auto" MinWidth="80">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>

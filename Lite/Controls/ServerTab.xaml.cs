@@ -472,8 +472,8 @@ public partial class ServerTab : UserControl
             var cpuTask = _dataService.GetCpuUtilizationAsync(_serverId, hoursBack, fromDate, toDate);
             var memoryTask = _dataService.GetLatestMemoryStatsAsync(_serverId);
             var memoryTrendTask = _dataService.GetMemoryTrendAsync(_serverId, hoursBack, fromDate, toDate);
-            var queryStatsTask = _dataService.GetTopQueriesByCpuAsync(_serverId, hoursBack, 50, fromDate, toDate);
-            var procStatsTask = _dataService.GetTopProceduresByCpuAsync(_serverId, hoursBack, 50, fromDate, toDate);
+            var queryStatsTask = _dataService.GetTopQueriesByCpuAsync(_serverId, hoursBack, 50, fromDate, toDate, UtcOffsetMinutes);
+            var procStatsTask = _dataService.GetTopProceduresByCpuAsync(_serverId, hoursBack, 50, fromDate, toDate, UtcOffsetMinutes);
             var fileIoTask = _dataService.GetLatestFileIoStatsAsync(_serverId);
             var fileIoTrendTask = _dataService.GetFileIoLatencyTrendAsync(_serverId, hoursBack, fromDate, toDate);
             var tempDbTask = _dataService.GetTempDbTrendAsync(_serverId, hoursBack, fromDate, toDate);

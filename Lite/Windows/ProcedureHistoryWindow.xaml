@@ -39,6 +39,7 @@
                     <ComboBoxItem Content="Execution Count Delta" Tag="DeltaExecutions"/>
                     <ComboBoxItem Content="Total CPU (ms)" Tag="DeltaCpuMs"/>
                     <ComboBoxItem Content="Total Logical Reads" Tag="DeltaLogicalReads"/>
+                    <ComboBoxItem Content="Total Spills" Tag="TotalSpills"/>
                 </ComboBox>
                 <scottplot:WpfPlot x:Name="HistoryChart" Margin="0,0,0,0"/>
             </Grid>
@@ -60,6 +61,11 @@
                 <DataGridTextColumn Header="Avg Reads" Binding="{Binding AvgReads, StringFormat=N1}" ElementStyle="{StaticResource NumericCell}" Width="90"/>
                 <DataGridTextColumn Header="Writes" Binding="{Binding DeltaLogicalWrites, StringFormat=N0}" ElementStyle="{StaticResource NumericCell}" Width="80"/>
                 <DataGridTextColumn Header="Physical Reads" Binding="{Binding DeltaPhysicalReads, StringFormat=N0}" ElementStyle="{StaticResource NumericCell}" Width="100"/>
+                <DataGridTextColumn Header="Spills" Binding="{Binding TotalSpills, StringFormat=N0}" ElementStyle="{StaticResource NumericCell}" Width="70"/>
+                <DataGridTextColumn Header="Min CPU (ms)" Binding="{Binding MinCpuMs, StringFormat=N2}" ElementStyle="{StaticResource NumericCell}" Width="100"/>
+                <DataGridTextColumn Header="Max CPU (ms)" Binding="{Binding MaxCpuMs, StringFormat=N2}" ElementStyle="{StaticResource NumericCell}" Width="100"/>
+                <DataGridTextColumn Header="Min Duration (ms)" Binding="{Binding MinElapsedMs, StringFormat=N2}" ElementStyle="{StaticResource NumericCell}" Width="120"/>
+                <DataGridTextColumn Header="Max Duration (ms)" Binding="{Binding MaxElapsedMs, StringFormat=N2}" ElementStyle="{StaticResource NumericCell}" Width="120"/>
                 <DataGridTemplateColumn Header="Plan" Width="Auto" MinWidth="80">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>

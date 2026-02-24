@@ -68,7 +68,7 @@ public class DuckDbInitializer
     /// <summary>
     /// Current schema version. Increment this when schema changes require table rebuilds.
     /// </summary>
-    internal const int CurrentSchemaVersion = 12;
+    internal const int CurrentSchemaVersion = 13;
 
     private readonly string _archivePath;
 
@@ -435,6 +435,22 @@ public class DuckDbInitializer
             {
                 /* Table doesn't exist yet — will be created with correct schema below */
             }
+        }
+
+        if (fromVersion < 13)
+        {
+            /* v13: Full column parity with Dashboard for all three query/procedure collectors.
+                    query_stats: added creation_time, last_execution_time, total_clr_time,
+                      min/max physical_reads, rows, spills, memory grant columns (6), thread columns (4).
+                    procedure_stats: added cached_time, last_execution_time,
+                      min/max logical_reads, physical_reads, logical_writes, spills.
+                    query_store_stats: complete rebuild with all min/max columns, DOP, CLR,
+                      memory, tempdb, plan forcing, compilation metrics, version-gated columns.
+                    Must drop/recreate because DuckDB appender writes by position. */
+            _logger?.LogInformation("Running migration to v13: rebuilding query_stats, procedure_stats, query_store_stats for full Dashboard column parity");
+            await ExecuteNonQueryAsync(connection, "DROP TABLE IF EXISTS query_stats");
+            await ExecuteNonQueryAsync(connection, "DROP TABLE IF EXISTS procedure_stats");
+            await ExecuteNonQueryAsync(connection, "DROP TABLE IF EXISTS query_store_stats");
         }
     }
 

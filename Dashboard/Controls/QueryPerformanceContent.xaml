@@ -1421,113 +1421,113 @@
                 <DataGrid.Columns>
                     <DataGridTextColumn Binding="{Binding LastExecutionTime, StringFormat='{}{0:yyyy-MM-dd HH:mm:ss}'}" Width="150">
                         <DataGridTextColumn.Header>
-                            <StackPanel>
-                                <TextBlock Text="Last Execution" FontWeight="Bold" Margin="0,0,0,2"/>
-                                <TextBox Width="140" Height="22" FontSize="11" Style="{StaticResource FilterTextBoxStyle}" TextChanged="QueryStoreRegressionsFilterTextBox_TextChanged" Tag="LastExecutionTime"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Style="{DynamicResource ColumnFilterButtonStyle}" Tag="LastExecutionTime" Click="QsRegressionsFilter_Click" Margin="0,0,4,0"/>
+                                <TextBlock Text="Last Execution" FontWeight="Bold" VerticalAlignment="Center"/>
                             </StackPanel>
                         </DataGridTextColumn.Header>
                     </DataGridTextColumn>
                     <DataGridTextColumn Binding="{Binding Severity}" Width="80">
                         <DataGridTextColumn.Header>
-                            <StackPanel>
-                                <TextBlock Text="Severity" FontWeight="Bold" Margin="0,0,0,2"/>
-                                <TextBox Width="70" Height="22" FontSize="11" Style="{StaticResource FilterTextBoxStyle}" TextChanged="QueryStoreRegressionsFilterTextBox_TextChanged" Tag="Severity"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Style="{DynamicResource ColumnFilterButtonStyle}" Tag="Severity" Click="QsRegressionsFilter_Click" Margin="0,0,4,0"/>
+                                <TextBlock Text="Severity" FontWeight="Bold" VerticalAlignment="Center"/>
                             </StackPanel>
                         </DataGridTextColumn.Header>
                     </DataGridTextColumn>
                     <DataGridTextColumn Binding="{Binding DatabaseName}" Width="120">
                         <DataGridTextColumn.Header>
-                            <StackPanel>
-                                <TextBlock Text="Database" FontWeight="Bold" Margin="0,0,0,2"/>
-                                <TextBox Width="110" Height="22" FontSize="11" Style="{StaticResource FilterTextBoxStyle}" TextChanged="QueryStoreRegressionsFilterTextBox_TextChanged" Tag="DatabaseName"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Style="{DynamicResource ColumnFilterButtonStyle}" Tag="DatabaseName" Click="QsRegressionsFilter_Click" Margin="0,0,4,0"/>
+                                <TextBlock Text="Database" FontWeight="Bold" VerticalAlignment="Center"/>
                             </StackPanel>
                         </DataGridTextColumn.Header>
                     </DataGridTextColumn>
                     <DataGridTextColumn Binding="{Binding QueryId}" ElementStyle="{StaticResource NumericCell}" Width="80">
                         <DataGridTextColumn.Header>
-                            <StackPanel>
-                                <TextBlock Text="Query ID" FontWeight="Bold" Margin="0,0,0,2"/>
-                                <TextBox Width="70" Height="22" FontSize="11" Style="{StaticResource FilterTextBoxStyle}" TextChanged="QueryStoreRegressionsNumericFilterTextBox_TextChanged" Tag="QueryId"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Style="{DynamicResource ColumnFilterButtonStyle}" Tag="QueryId" Click="QsRegressionsFilter_Click" Margin="0,0,4,0"/>
+                                <TextBlock Text="Query ID" FontWeight="Bold" VerticalAlignment="Center"/>
                             </StackPanel>
                         </DataGridTextColumn.Header>
                     </DataGridTextColumn>
                     <DataGridTextColumn Binding="{Binding DurationRegressionPercent, StringFormat='{}{0:N2}%'}" ElementStyle="{StaticResource NumericCell}" Width="110">
                         <DataGridTextColumn.Header>
-                            <StackPanel>
-                                <TextBlock Text="Duration Δ%" FontWeight="Bold" Margin="0,0,0,2"/>
-                                <TextBox Width="100" Height="22" FontSize="11" Style="{StaticResource FilterTextBoxStyle}" TextChanged="QueryStoreRegressionsNumericFilterTextBox_TextChanged" Tag="DurationRegressionPercent"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Style="{DynamicResource ColumnFilterButtonStyle}" Tag="DurationRegressionPercent" Click="QsRegressionsFilter_Click" Margin="0,0,4,0"/>
+                                <TextBlock Text="Duration Δ%" FontWeight="Bold" VerticalAlignment="Center"/>
                             </StackPanel>
                         </DataGridTextColumn.Header>
                     </DataGridTextColumn>
                     <DataGridTextColumn Binding="{Binding BaselineDurationMs, StringFormat='{}{0:N2}'}" ElementStyle="{StaticResource NumericCell}" Width="100">
                         <DataGridTextColumn.Header>
-                            <StackPanel>
-                                <TextBlock Text="Base Dur (ms)" FontWeight="Bold" Margin="0,0,0,2"/>
-                                <TextBox Width="90" Height="22" FontSize="11" Style="{StaticResource FilterTextBoxStyle}" TextChanged="QueryStoreRegressionsNumericFilterTextBox_TextChanged" Tag="BaselineDurationMs"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Style="{DynamicResource ColumnFilterButtonStyle}" Tag="BaselineDurationMs" Click="QsRegressionsFilter_Click" Margin="0,0,4,0"/>
+                                <TextBlock Text="Base Dur (ms)" FontWeight="Bold" VerticalAlignment="Center"/>
                             </StackPanel>
                         </DataGridTextColumn.Header>
                     </DataGridTextColumn>
                     <DataGridTextColumn Binding="{Binding RecentDurationMs, StringFormat='{}{0:N2}'}" ElementStyle="{StaticResource NumericCell}" Width="110">
                         <DataGridTextColumn.Header>
-                            <StackPanel>
-                                <TextBlock Text="Recent Dur (ms)" FontWeight="Bold" Margin="0,0,0,2"/>
-                                <TextBox Width="100" Height="22" FontSize="11" Style="{StaticResource FilterTextBoxStyle}" TextChanged="QueryStoreRegressionsNumericFilterTextBox_TextChanged" Tag="RecentDurationMs"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Style="{DynamicResource ColumnFilterButtonStyle}" Tag="RecentDurationMs" Click="QsRegressionsFilter_Click" Margin="0,0,4,0"/>
+                                <TextBlock Text="Recent Dur (ms)" FontWeight="Bold" VerticalAlignment="Center"/>
                             </StackPanel>
                         </DataGridTextColumn.Header>
                     </DataGridTextColumn>
                     <DataGridTextColumn Binding="{Binding CpuRegressionPercent, StringFormat='{}{0:N2}%'}" ElementStyle="{StaticResource NumericCell}" Width="100">
                         <DataGridTextColumn.Header>
-                            <StackPanel>
-                                <TextBlock Text="CPU Δ%" FontWeight="Bold" Margin="0,0,0,2"/>
-                                <TextBox Width="90" Height="22" FontSize="11" Style="{StaticResource FilterTextBoxStyle}" TextChanged="QueryStoreRegressionsNumericFilterTextBox_TextChanged" Tag="CpuRegressionPercent"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Style="{DynamicResource ColumnFilterButtonStyle}" Tag="CpuRegressionPercent" Click="QsRegressionsFilter_Click" Margin="0,0,4,0"/>
+                                <TextBlock Text="CPU Δ%" FontWeight="Bold" VerticalAlignment="Center"/>
                             </StackPanel>
                         </DataGridTextColumn.Header>
                     </DataGridTextColumn>
                     <DataGridTextColumn Binding="{Binding BaselineCpuMs, StringFormat='{}{0:N2}'}" ElementStyle="{StaticResource NumericCell}" Width="100">
                         <DataGridTextColumn.Header>
-                            <StackPanel>
-                                <TextBlock Text="Base CPU (ms)" FontWeight="Bold" Margin="0,0,0,2"/>
-                                <TextBox Width="90" Height="22" FontSize="11" Style="{StaticResource FilterTextBoxStyle}" TextChanged="QueryStoreRegressionsNumericFilterTextBox_TextChanged" Tag="BaselineCpuMs"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Style="{DynamicResource ColumnFilterButtonStyle}" Tag="BaselineCpuMs" Click="QsRegressionsFilter_Click" Margin="0,0,4,0"/>
+                                <TextBlock Text="Base CPU (ms)" FontWeight="Bold" VerticalAlignment="Center"/>
                             </StackPanel>
                         </DataGridTextColumn.Header>
                     </DataGridTextColumn>
                     <DataGridTextColumn Binding="{Binding RecentCpuMs, StringFormat='{}{0:N2}'}" ElementStyle="{StaticResource NumericCell}" Width="110">
                         <DataGridTextColumn.Header>
-                            <StackPanel>
-                                <TextBlock Text="Recent CPU (ms)" FontWeight="Bold" Margin="0,0,0,2"/>
-                                <TextBox Width="100" Height="22" FontSize="11" Style="{StaticResource FilterTextBoxStyle}" TextChanged="QueryStoreRegressionsNumericFilterTextBox_TextChanged" Tag="RecentCpuMs"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Style="{DynamicResource ColumnFilterButtonStyle}" Tag="RecentCpuMs" Click="QsRegressionsFilter_Click" Margin="0,0,4,0"/>
+                                <TextBlock Text="Recent CPU (ms)" FontWeight="Bold" VerticalAlignment="Center"/>
                             </StackPanel>
                         </DataGridTextColumn.Header>
                     </DataGridTextColumn>
                     <DataGridTextColumn Binding="{Binding IoRegressionPercent, StringFormat='{}{0:N2}%'}" ElementStyle="{StaticResource NumericCell}" Width="90">
                         <DataGridTextColumn.Header>
-                            <StackPanel>
-                                <TextBlock Text="I/O Δ%" FontWeight="Bold" Margin="0,0,0,2"/>
-                                <TextBox Width="80" Height="22" FontSize="11" Style="{StaticResource FilterTextBoxStyle}" TextChanged="QueryStoreRegressionsNumericFilterTextBox_TextChanged" Tag="IoRegressionPercent"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Style="{DynamicResource ColumnFilterButtonStyle}" Tag="IoRegressionPercent" Click="QsRegressionsFilter_Click" Margin="0,0,4,0"/>
+                                <TextBlock Text="I/O Δ%" FontWeight="Bold" VerticalAlignment="Center"/>
                             </StackPanel>
                         </DataGridTextColumn.Header>
                     </DataGridTextColumn>
                     <DataGridTextColumn Binding="{Binding BaselineReads, StringFormat='{}{0:N0}'}" ElementStyle="{StaticResource NumericCell}" Width="100">
                         <DataGridTextColumn.Header>
-                            <StackPanel>
-                                <TextBlock Text="Base Reads (pages)" FontWeight="Bold" Margin="0,0,0,2"/>
-                                <TextBox Width="90" Height="22" FontSize="11" Style="{StaticResource FilterTextBoxStyle}" TextChanged="QueryStoreRegressionsNumericFilterTextBox_TextChanged" Tag="BaselineReads"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Style="{DynamicResource ColumnFilterButtonStyle}" Tag="BaselineReads" Click="QsRegressionsFilter_Click" Margin="0,0,4,0"/>
+                                <TextBlock Text="Base Reads (pages)" FontWeight="Bold" VerticalAlignment="Center"/>
                             </StackPanel>
                         </DataGridTextColumn.Header>
                     </DataGridTextColumn>
                     <DataGridTextColumn Binding="{Binding RecentReads, StringFormat='{}{0:N0}'}" ElementStyle="{StaticResource NumericCell}" Width="100">
                         <DataGridTextColumn.Header>
-                            <StackPanel>
-                                <TextBlock Text="Recent Reads (pages)" FontWeight="Bold" Margin="0,0,0,2"/>
-                                <TextBox Width="90" Height="22" FontSize="11" Style="{StaticResource FilterTextBoxStyle}" TextChanged="QueryStoreRegressionsNumericFilterTextBox_TextChanged" Tag="RecentReads"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Style="{DynamicResource ColumnFilterButtonStyle}" Tag="RecentReads" Click="QsRegressionsFilter_Click" Margin="0,0,4,0"/>
+                                <TextBlock Text="Recent Reads (pages)" FontWeight="Bold" VerticalAlignment="Center"/>
                             </StackPanel>
                         </DataGridTextColumn.Header>
                     </DataGridTextColumn>
                     <DataGridTextColumn Binding="{Binding QueryTextSample}" Width="*" MinWidth="300">
                         <DataGridTextColumn.Header>
-                            <StackPanel>
-                                <TextBlock Text="Query Text" FontWeight="Bold" Margin="0,0,0,2"/>
-                                <TextBox Width="290" Height="22" FontSize="11" Style="{StaticResource FilterTextBoxStyle}" TextChanged="QueryStoreRegressionsFilterTextBox_TextChanged" Tag="QueryTextSample"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Style="{DynamicResource ColumnFilterButtonStyle}" Tag="QueryTextSample" Click="QsRegressionsFilter_Click" Margin="0,0,4,0"/>
+                                <TextBlock Text="Query Text" FontWeight="Bold" VerticalAlignment="Center"/>
                             </StackPanel>
                         </DataGridTextColumn.Header>
                     </DataGridTextColumn>
@@ -1547,73 +1547,73 @@
                 <DataGrid.Columns>
                     <DataGridTextColumn Binding="{Binding DatabaseName}" Width="120">
                         <DataGridTextColumn.Header>
-                            <StackPanel>
-                                <TextBlock Text="Database" FontWeight="Bold" Margin="0,0,0,2"/>
-                                <TextBox Width="110" Height="22" FontSize="11" TextChanged="LongRunningQueryPatternsFilterTextBox_TextChanged" Tag="DatabaseName"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Style="{DynamicResource ColumnFilterButtonStyle}" Tag="DatabaseName" Click="LrqPatternsFilter_Click" Margin="0,0,4,0"/>
+                                <TextBlock Text="Database" FontWeight="Bold" VerticalAlignment="Center"/>
                             </StackPanel>
                         </DataGridTextColumn.Header>
                     </DataGridTextColumn>
                     <DataGridTextColumn Binding="{Binding Executions}" ElementStyle="{StaticResource NumericCell}" Width="100">
                         <DataGridTextColumn.Header>
-                            <StackPanel>
-                                <TextBlock Text="Executions" FontWeight="Bold" Margin="0,0,0,2"/>
-                                <TextBox Width="90" Height="22" FontSize="11" TextChanged="LongRunningQueryPatternsNumericFilterTextBox_TextChanged" Tag="Executions"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Style="{DynamicResource ColumnFilterButtonStyle}" Tag="Executions" Click="LrqPatternsFilter_Click" Margin="0,0,4,0"/>
+                                <TextBlock Text="Executions" FontWeight="Bold" VerticalAlignment="Center"/>
                             </StackPanel>
                         </DataGridTextColumn.Header>
                     </DataGridTextColumn>
                     <DataGridTextColumn Binding="{Binding AvgDurationSec, StringFormat='{}{0:N2}'}" ElementStyle="{StaticResource NumericCell}" Width="110">
                         <DataGridTextColumn.Header>
-                            <StackPanel>
-                                <TextBlock Text="Avg Duration (sec)" FontWeight="Bold" Margin="0,0,0,2"/>
-                                <TextBox Width="100" Height="22" FontSize="11" TextChanged="LongRunningQueryPatternsNumericFilterTextBox_TextChanged" Tag="AvgDurationSec"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Style="{DynamicResource ColumnFilterButtonStyle}" Tag="AvgDurationSec" Click="LrqPatternsFilter_Click" Margin="0,0,4,0"/>
+                                <TextBlock Text="Avg Duration (sec)" FontWeight="Bold" VerticalAlignment="Center"/>
                             </StackPanel>
                         </DataGridTextColumn.Header>
                     </DataGridTextColumn>
                     <DataGridTextColumn Binding="{Binding MaxDurationSec, StringFormat='{}{0:N2}'}" ElementStyle="{StaticResource NumericCell}" Width="110">
                         <DataGridTextColumn.Header>
-                            <StackPanel>
-                                <TextBlock Text="Max Duration (sec)" FontWeight="Bold" Margin="0,0,0,2"/>
-                                <TextBox Width="100" Height="22" FontSize="11" TextChanged="LongRunningQueryPatternsNumericFilterTextBox_TextChanged" Tag="MaxDurationSec"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Style="{DynamicResource ColumnFilterButtonStyle}" Tag="MaxDurationSec" Click="LrqPatternsFilter_Click" Margin="0,0,4,0"/>
+                                <TextBlock Text="Max Duration (sec)" FontWeight="Bold" VerticalAlignment="Center"/>
                             </StackPanel>
                         </DataGridTextColumn.Header>
                     </DataGridTextColumn>
                     <DataGridTextColumn Binding="{Binding AvgCpuSec, StringFormat='{}{0:N2}'}" ElementStyle="{StaticResource NumericCell}" Width="100">
                         <DataGridTextColumn.Header>
-                            <StackPanel>
-                                <TextBlock Text="Avg CPU (sec)" FontWeight="Bold" Margin="0,0,0,2"/>
-                                <TextBox Width="90" Height="22" FontSize="11" TextChanged="LongRunningQueryPatternsNumericFilterTextBox_TextChanged" Tag="AvgCpuSec"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Style="{DynamicResource ColumnFilterButtonStyle}" Tag="AvgCpuSec" Click="LrqPatternsFilter_Click" Margin="0,0,4,0"/>
+                                <TextBlock Text="Avg CPU (sec)" FontWeight="Bold" VerticalAlignment="Center"/>
                             </StackPanel>
                         </DataGridTextColumn.Header>
                     </DataGridTextColumn>
                     <DataGridTextColumn Binding="{Binding AvgReads}" ElementStyle="{StaticResource NumericCell}" Width="100">
                         <DataGridTextColumn.Header>
-                            <StackPanel>
-                                <TextBlock Text="Avg Reads (pages)" FontWeight="Bold" Margin="0,0,0,2"/>
-                                <TextBox Width="90" Height="22" FontSize="11" TextChanged="LongRunningQueryPatternsNumericFilterTextBox_TextChanged" Tag="AvgReads"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Style="{DynamicResource ColumnFilterButtonStyle}" Tag="AvgReads" Click="LrqPatternsFilter_Click" Margin="0,0,4,0"/>
+                                <TextBlock Text="Avg Reads (pages)" FontWeight="Bold" VerticalAlignment="Center"/>
                             </StackPanel>
                         </DataGridTextColumn.Header>
                     </DataGridTextColumn>
                     <DataGridTextColumn Binding="{Binding ConcernLevel}" Width="100">
                         <DataGridTextColumn.Header>
-                            <StackPanel>
-                                <TextBlock Text="Concern" FontWeight="Bold" Margin="0,0,0,2"/>
-                                <TextBox Width="90" Height="22" FontSize="11" TextChanged="LongRunningQueryPatternsFilterTextBox_TextChanged" Tag="ConcernLevel"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Style="{DynamicResource ColumnFilterButtonStyle}" Tag="ConcernLevel" Click="LrqPatternsFilter_Click" Margin="0,0,4,0"/>
+                                <TextBlock Text="Concern" FontWeight="Bold" VerticalAlignment="Center"/>
                             </StackPanel>
                         </DataGridTextColumn.Header>
                     </DataGridTextColumn>
                     <DataGridTextColumn Binding="{Binding LastExecution, StringFormat='{}{0:yyyy-MM-dd HH:mm:ss}'}" Width="150">
                         <DataGridTextColumn.Header>
-                            <StackPanel>
-                                <TextBlock Text="Last Execution" FontWeight="Bold" Margin="0,0,0,2"/>
-                                <TextBox Width="140" Height="22" FontSize="11" TextChanged="LongRunningQueryPatternsFilterTextBox_TextChanged" Tag="LastExecution"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Style="{DynamicResource ColumnFilterButtonStyle}" Tag="LastExecution" Click="LrqPatternsFilter_Click" Margin="0,0,4,0"/>
+                                <TextBlock Text="Last Execution" FontWeight="Bold" VerticalAlignment="Center"/>
                             </StackPanel>
                         </DataGridTextColumn.Header>
                     </DataGridTextColumn>
                     <DataGridTextColumn Binding="{Binding QueryPattern}" Width="*" MinWidth="300">
                         <DataGridTextColumn.Header>
-                            <StackPanel>
-                                <TextBlock Text="Query Pattern" FontWeight="Bold" Margin="0,0,0,2"/>
-                                <TextBox Width="290" Height="22" FontSize="11" TextChanged="LongRunningQueryPatternsFilterTextBox_TextChanged" Tag="QueryPattern"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Style="{DynamicResource ColumnFilterButtonStyle}" Tag="QueryPattern" Click="LrqPatternsFilter_Click" Margin="0,0,4,0"/>
+                                <TextBlock Text="Query Pattern" FontWeight="Bold" VerticalAlignment="Center"/>
                             </StackPanel>
                         </DataGridTextColumn.Header>
                     </DataGridTextColumn>

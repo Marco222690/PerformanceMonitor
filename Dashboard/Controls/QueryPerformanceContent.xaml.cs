@@ -75,6 +75,14 @@ namespace PerformanceMonitorDashboard.Controls
         private Dictionary<string, Models.ColumnFilterState> _queryStoreFilters = new();
         private List<QueryStoreItem>? _queryStoreUnfilteredData;
 
+        // Query Store Regressions filter state
+        private Dictionary<string, Models.ColumnFilterState> _qsRegressionsFilters = new();
+        private List<QueryStoreRegressionItem>? _qsRegressionsUnfilteredData;
+
+        // Query Trace Patterns filter state
+        private Dictionary<string, Models.ColumnFilterState> _lrqPatternsFilters = new();
+        private List<LongRunningQueryPatternItem>? _lrqPatternsUnfilteredData;
+
         // Active Queries state
         private int _activeQueriesHoursBack = 1;
         private DateTime? _activeQueriesFromDate;
@@ -147,6 +155,10 @@ namespace PerformanceMonitorDashboard.Controls
                 _filterPopupContent.FilterCleared -= QueryStoreFilterPopup_FilterCleared;
                 _filterPopupContent.FilterApplied -= CurrentActiveFilterPopup_FilterApplied;
                 _filterPopupContent.FilterCleared -= CurrentActiveFilterPopup_FilterCleared;
+                _filterPopupContent.FilterApplied -= QsRegressionsFilterPopup_FilterApplied;
+                _filterPopupContent.FilterCleared -= QsRegressionsFilterPopup_FilterCleared;
+                _filterPopupContent.FilterApplied -= LrqPatternsFilterPopup_FilterApplied;
+                _filterPopupContent.FilterCleared -= LrqPatternsFilterPopup_FilterCleared;
             }
 
             /* Clear large data collections to free memory */
@@ -155,6 +167,8 @@ namespace PerformanceMonitorDashboard.Controls
             _queryStatsUnfilteredData = null;
             _procStatsUnfilteredData = null;
             _queryStoreUnfilteredData = null;
+            _qsRegressionsUnfilteredData = null;
+            _lrqPatternsUnfilteredData = null;
         }
 
         private void OnLoaded(object sender, RoutedEventArgs e)
@@ -402,6 +416,10 @@ namespace PerformanceMonitorDashboard.Controls
             _filterPopupContent.FilterCleared -= ProcStatsFilterPopup_FilterCleared;
             _filterPopupContent.FilterApplied -= QueryStoreFilterPopup_FilterApplied;
             _filterPopupContent.FilterCleared -= QueryStoreFilterPopup_FilterCleared;
+            _filterPopupContent.FilterApplied -= QsRegressionsFilterPopup_FilterApplied;
+            _filterPopupContent.FilterCleared -= QsRegressionsFilterPopup_FilterCleared;
+            _filterPopupContent.FilterApplied -= LrqPatternsFilterPopup_FilterApplied;
+            _filterPopupContent.FilterCleared -= LrqPatternsFilterPopup_FilterCleared;
 
             // Add the new handlers
             _filterPopupContent.FilterApplied += filterAppliedHandler;
@@ -1251,14 +1269,78 @@ namespace PerformanceMonitorDashboard.Controls
             }
         }
 
-        private void QueryStoreRegressionsFilterTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        private void QsRegressionsFilter_Click(object sender, RoutedEventArgs e)
         {
-            DataGridFilterService.ApplyFilter(QueryStoreRegressionsDataGrid, sender as TextBox);
+            if (sender is not Button button || button.Tag is not string columnName) return;
+
+            EnsureFilterPopup();
+            RewireFilterPopupEvents(
+                QsRegressionsFilterPopup_FilterApplied,
+                QsRegressionsFilterPopup_FilterCleared);
+
+            _qsRegressionsFilters.TryGetValue(columnName, out var existingFilter);
+            _filterPopupContent!.Initialize(columnName, existingFilter);
+
+            _filterPopup!.PlacementTarget = button;
+            _filterPopup.IsOpen = true;
         }
 
-        private void QueryStoreRegressionsNumericFilterTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        private void QsRegressionsFilterPopup_FilterApplied(object? sender, FilterAppliedEventArgs e)
         {
-            DataGridFilterService.ApplyFilter(QueryStoreRegressionsDataGrid, sender as TextBox);
+            if (_filterPopup != null)
+                _filterPopup.IsOpen = false;
+
+            if (e.FilterState.IsActive)
+            {
+                _qsRegressionsFilters[e.FilterState.ColumnName] = e.FilterState;
+            }
+            else
+            {
+                _qsRegressionsFilters.Remove(e.FilterState.ColumnName);
+            }
+
+            ApplyQsRegressionsFilters();
+            UpdateDataGridFilterButtonStyles(QueryStoreRegressionsDataGrid, _qsRegressionsFilters);
+        }
+
+        private void QsRegressionsFilterPopup_FilterCleared(object? sender, EventArgs e)
+        {
+            if (_filterPopup != null)
+                _filterPopup.IsOpen = false;
+        }
+
+        private void ApplyQsRegressionsFilters()
+        {
+            if (_qsRegressionsUnfilteredData == null)
+            {
+                _qsRegressionsUnfilteredData = QueryStoreRegressionsDataGrid.ItemsSource as List<QueryStoreRegressionItem>;
+                if (_qsRegressionsUnfilteredData == null && QueryStoreRegressionsDataGrid.ItemsSource != null)
+                {
+                    _qsRegressionsUnfilteredData = (QueryStoreRegressionsDataGrid.ItemsSource as IEnumerable<QueryStoreRegressionItem>)?.ToList();
+                }
+            }
+
+            if (_qsRegressionsUnfilteredData == null) return;
+
+            if (_qsRegressionsFilters.Count == 0)
+            {
+                QueryStoreRegressionsDataGrid.ItemsSource = _qsRegressionsUnfilteredData;
+                return;
+            }
+
+            var filteredData = _qsRegressionsUnfilteredData.Where(item =>
+            {
+                foreach (var filter in _qsRegressionsFilters.Values)
+                {
+                    if (filter.IsActive && !DataGridFilterService.MatchesFilter(item, filter))
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }).ToList();
+
+            QueryStoreRegressionsDataGrid.ItemsSource = filteredData;
         }
 
         #endregion
@@ -1286,14 +1368,78 @@ namespace PerformanceMonitorDashboard.Controls
             }
         }
 
-        private void LongRunningQueryPatternsFilterTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        private void LrqPatternsFilter_Click(object sender, RoutedEventArgs e)
         {
-            DataGridFilterService.ApplyFilter(LongRunningQueryPatternsDataGrid, sender as TextBox);
+            if (sender is not Button button || button.Tag is not string columnName) return;
+
+            EnsureFilterPopup();
+            RewireFilterPopupEvents(
+                LrqPatternsFilterPopup_FilterApplied,
+                LrqPatternsFilterPopup_FilterCleared);
+
+            _lrqPatternsFilters.TryGetValue(columnName, out var existingFilter);
+            _filterPopupContent!.Initialize(columnName, existingFilter);
+
+            _filterPopup!.PlacementTarget = button;
+            _filterPopup.IsOpen = true;
         }
 
-        private void LongRunningQueryPatternsNumericFilterTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        private void LrqPatternsFilterPopup_FilterApplied(object? sender, FilterAppliedEventArgs e)
         {
-            DataGridFilterService.ApplyFilter(LongRunningQueryPatternsDataGrid, sender as TextBox);
+            if (_filterPopup != null)
+                _filterPopup.IsOpen = false;
+
+            if (e.FilterState.IsActive)
+            {
+                _lrqPatternsFilters[e.FilterState.ColumnName] = e.FilterState;
+            }
+            else
+            {
+                _lrqPatternsFilters.Remove(e.FilterState.ColumnName);
+            }
+
+            ApplyLrqPatternsFilters();
+            UpdateDataGridFilterButtonStyles(LongRunningQueryPatternsDataGrid, _lrqPatternsFilters);
+        }
+
+        private void LrqPatternsFilterPopup_FilterCleared(object? sender, EventArgs e)
+        {
+            if (_filterPopup != null)
+                _filterPopup.IsOpen = false;
+        }
+
+        private void ApplyLrqPatternsFilters()
+        {
+            if (_lrqPatternsUnfilteredData == null)
+            {
+                _lrqPatternsUnfilteredData = LongRunningQueryPatternsDataGrid.ItemsSource as List<LongRunningQueryPatternItem>;
+                if (_lrqPatternsUnfilteredData == null && LongRunningQueryPatternsDataGrid.ItemsSource != null)
+                {
+                    _lrqPatternsUnfilteredData = (LongRunningQueryPatternsDataGrid.ItemsSource as IEnumerable<LongRunningQueryPatternItem>)?.ToList();
+                }
+            }
+
+            if (_lrqPatternsUnfilteredData == null) return;
+
+            if (_lrqPatternsFilters.Count == 0)
+            {
+                LongRunningQueryPatternsDataGrid.ItemsSource = _lrqPatternsUnfilteredData;
+                return;
+            }
+
+            var filteredData = _lrqPatternsUnfilteredData.Where(item =>
+            {
+                foreach (var filter in _lrqPatternsFilters.Values)
+                {
+                    if (filter.IsActive && !DataGridFilterService.MatchesFilter(item, filter))
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }).ToList();
+
+            LongRunningQueryPatternsDataGrid.ItemsSource = filteredData;
         }
 
         #endregion

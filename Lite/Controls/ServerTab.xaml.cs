@@ -83,14 +83,9 @@ public partial class ServerTab : UserControl
     private DateTime? _dailySummaryDate; // null = today
     private CancellationTokenSource? _actualPlanCts;
 
-    private static readonly HashSet<string> _defaultPerfmonCounters = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "Batch Requests/sec",
-        "Deadlocks/sec",
-        "Query Optimizations/sec",
-        "SQL Compilations/sec",
-        "SQL Re-Compilations/sec"
-    };
+    private static readonly HashSet<string> _defaultPerfmonCounters = new(
+        Helpers.PerfmonPacks.Packs["General Throughput"],
+        StringComparer.OrdinalIgnoreCase);
 
     private static readonly string[] SeriesColors = new[]
     {
@@ -1554,6 +1549,13 @@ public partial class ServerTab : UserControl
 
     private void PopulatePerfmonPicker(List<string> counters)
     {
+        /* Initialize pack ComboBox once */
+        if (PerfmonPackCombo.Items.Count == 0)
+        {
+            PerfmonPackCombo.ItemsSource = Helpers.PerfmonPacks.PackNames;
+            PerfmonPackCombo.SelectedItem = "General Throughput";
+        }
+
         var previouslySelected = new HashSet<string>(_perfmonCounterItems.Where(i => i.IsSelected).Select(i => i.DisplayName));
         _perfmonCounterItems = counters.Select(c => new SelectableItem
         {
@@ -1562,6 +1564,50 @@ public partial class ServerTab : UserControl
                 || (previouslySelected.Count == 0 && _defaultPerfmonCounters.Contains(c))
         }).ToList();
         RefreshPerfmonListOrder();
+    }
+
+    private void PerfmonPack_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_perfmonCounterItems == null || _perfmonCounterItems.Count == 0) return;
+        if (PerfmonPackCombo.SelectedItem is not string pack) return;
+
+        _isUpdatingPerfmonSelection = true;
+
+        /* Clear search so all counters are visible */
+        if (PerfmonSearchBox != null)
+            PerfmonSearchBox.Text = "";
+
+        /* Uncheck everything first */
+        foreach (var item in _perfmonCounterItems)
+            item.IsSelected = false;
+
+        if (pack == Helpers.PerfmonPacks.AllCounters)
+        {
+            /* "All Counters" selects the General Throughput defaults */
+            foreach (var item in _perfmonCounterItems)
+            {
+                if (_defaultPerfmonCounters.Contains(item.DisplayName))
+                    item.IsSelected = true;
+            }
+        }
+        else if (Helpers.PerfmonPacks.Packs.TryGetValue(pack, out var packCounters))
+        {
+            var packSet = new HashSet<string>(packCounters, StringComparer.OrdinalIgnoreCase);
+            int count = 0;
+            foreach (var item in _perfmonCounterItems)
+            {
+                if (count >= 12) break;
+                if (packSet.Contains(item.DisplayName))
+                {
+                    item.IsSelected = true;
+                    count++;
+                }
+            }
+        }
+
+        _isUpdatingPerfmonSelection = false;
+        RefreshPerfmonListOrder();
+        _ = UpdatePerfmonChartFromPickerAsync();
     }
 
     private void RefreshPerfmonListOrder()

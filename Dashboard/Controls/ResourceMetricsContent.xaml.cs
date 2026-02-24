@@ -1451,6 +1451,51 @@ namespace PerformanceMonitorDashboard.Controls
             await UpdatePerfmonCountersChartAsync();
         }
 
+        private async void PerfmonPack_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_perfmonCounterItems == null || _perfmonCounterItems.Count == 0) return;
+            if (PerfmonPackCombo.SelectedItem is not string pack) return;
+
+            _isUpdatingPerfmonSelection = true;
+
+            /* Clear search so all counters are visible */
+            if (PerfmonCounterSearchBox != null)
+                PerfmonCounterSearchBox.Text = "";
+
+            /* Uncheck everything first */
+            foreach (var item in _perfmonCounterItems)
+                item.IsSelected = false;
+
+            if (pack == PerfmonPacks.AllCounters)
+            {
+                /* "All Counters" selects the General Throughput defaults */
+                var defaultSet = new HashSet<string>(PerfmonPacks.Packs["General Throughput"], StringComparer.OrdinalIgnoreCase);
+                foreach (var item in _perfmonCounterItems)
+                {
+                    if (defaultSet.Contains(item.CounterName))
+                        item.IsSelected = true;
+                }
+            }
+            else if (PerfmonPacks.Packs.TryGetValue(pack, out var packCounters))
+            {
+                var packSet = new HashSet<string>(packCounters, StringComparer.OrdinalIgnoreCase);
+                int count = 0;
+                foreach (var item in _perfmonCounterItems)
+                {
+                    if (count >= 12) break;
+                    if (packSet.Contains(item.CounterName))
+                    {
+                        item.IsSelected = true;
+                        count++;
+                    }
+                }
+            }
+
+            _isUpdatingPerfmonSelection = false;
+            RefreshPerfmonCounterListOrder();
+            await UpdatePerfmonCountersChartAsync();
+        }
+
         private async void PerfmonCounters_Refresh_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -1466,6 +1511,13 @@ namespace PerformanceMonitorDashboard.Controls
         private async Task RefreshPerfmonCountersTabAsync()
         {
             if (_databaseService == null) return;
+
+            /* Initialize pack ComboBox once */
+            if (PerfmonPackCombo.Items.Count == 0)
+            {
+                PerfmonPackCombo.ItemsSource = PerfmonPacks.PackNames;
+                PerfmonPackCombo.SelectedItem = "General Throughput";
+            }
 
             try
             {
@@ -1487,11 +1539,12 @@ namespace PerformanceMonitorDashboard.Controls
                     })
                     .ToList();
 
-                // If nothing was previously selected, default select some useful counters
+                // If nothing was previously selected, default select General Throughput pack
                 if (!counters.Any(c => c.IsSelected))
                 {
-                    var defaultCounters = new[] { "Batch Requests/sec", "SQL Compilations/sec", "SQL Re-Compilations/sec", "Transactions/sec" };
-                    foreach (var item in counters.Where(c => defaultCounters.Contains(c.CounterName)))
+                    var defaultCounters = PerfmonPacks.Packs["General Throughput"];
+                    var defaultSet = new HashSet<string>(defaultCounters, StringComparer.OrdinalIgnoreCase);
+                    foreach (var item in counters.Where(c => defaultSet.Contains(c.CounterName)))
                     {
                         item.IsSelected = true;
                     }

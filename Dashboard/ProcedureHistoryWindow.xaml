@@ -399,6 +399,24 @@
                     </DataGridTextColumn.Header>
                 </DataGridTextColumn>
 
+                <!-- Query Identifiers -->
+                <DataGridTextColumn Binding="{Binding SqlHandle}" Width="160">
+                    <DataGridTextColumn.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <Button Style="{DynamicResource ColumnFilterButtonStyle}" Tag="SqlHandle" Click="Filter_Click" Margin="0,0,4,0"/>
+                            <TextBlock Text="SQL Handle" FontWeight="Bold" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </DataGridTextColumn.Header>
+                </DataGridTextColumn>
+                <DataGridTextColumn Binding="{Binding PlanHandle}" Width="160">
+                    <DataGridTextColumn.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <Button Style="{DynamicResource ColumnFilterButtonStyle}" Tag="PlanHandle" Click="Filter_Click" Margin="0,0,4,0"/>
+                            <TextBlock Text="Plan Handle" FontWeight="Bold" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </DataGridTextColumn.Header>
+                </DataGridTextColumn>
+
                 <!-- Download Plan Button -->
                 <DataGridTemplateColumn Header="Query Plan" Width="Auto" MinWidth="90">
                     <DataGridTemplateColumn.CellTemplate>

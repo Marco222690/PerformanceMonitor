@@ -42,6 +42,10 @@ namespace PerformanceMonitorDashboard.Models
         public long? MinSpills { get; set; }
         public long? MaxSpills { get; set; }
 
+        // Query identifiers (hex strings from binary columns)
+        public string? SqlHandle { get; set; }
+        public string? PlanHandle { get; set; }
+
         // Delta values
         public long? ExecutionCountDelta { get; set; }
         public long? TotalWorkerTimeDelta { get; set; }

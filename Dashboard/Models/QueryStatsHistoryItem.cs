@@ -81,6 +81,12 @@ namespace PerformanceMonitorDashboard.Models
         public long MinSpills { get; set; }
         public long MaxSpills { get; set; }
 
+        // Query identifiers (hex strings from binary columns)
+        public string? SqlHandle { get; set; }
+        public string? PlanHandle { get; set; }
+        public string? QueryHash { get; set; }
+        public string? QueryPlanHash { get; set; }
+
         // Sample interval
         public int? SampleIntervalSeconds { get; set; }
 

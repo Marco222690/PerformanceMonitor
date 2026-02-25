@@ -1611,6 +1611,8 @@ namespace PerformanceMonitorDashboard.Services
             avg_tempdb_space_used = SUM(qsd.avg_tempdb_space_used * qsd.count_executions) / NULLIF(SUM(qsd.count_executions), 0),
             min_tempdb_space_used = MIN(qsd.min_tempdb_space_used),
             max_tempdb_space_used = MAX(qsd.max_tempdb_space_used),
+            query_hash = CONVERT(varchar(20), MAX(qsd.query_hash), 1),
+            query_plan_hash = CONVERT(varchar(20), MAX(qsd.query_plan_hash), 1),
             plan_type = MAX(qsd.plan_type),
             is_forced_plan = CAST(MAX(CAST(qsd.is_forced_plan AS tinyint)) AS bit),
             force_failure_count = MAX(qsd.force_failure_count),
@@ -1678,12 +1680,14 @@ namespace PerformanceMonitorDashboard.Services
                             AvgTempdbSpaceUsed = reader.IsDBNull(27) ? null : reader.GetInt64(27),
                             MinTempdbSpaceUsed = reader.IsDBNull(28) ? null : reader.GetInt64(28),
                             MaxTempdbSpaceUsed = reader.IsDBNull(29) ? null : reader.GetInt64(29),
-                            PlanType = reader.IsDBNull(30) ? null : reader.GetString(30),
-                            IsForcedPlan = reader.GetBoolean(31),
-                            ForceFailureCount = reader.IsDBNull(32) ? null : reader.GetInt64(32),
-                            LastForceFailureReasonDesc = reader.IsDBNull(33) ? null : reader.GetString(33),
-                            PlanForcingType = reader.IsDBNull(34) ? null : reader.GetString(34),
-                            CompatibilityLevel = reader.IsDBNull(35) ? null : reader.GetInt16(35)
+                            QueryHash = reader.IsDBNull(30) ? null : reader.GetString(30),
+                            QueryPlanHash = reader.IsDBNull(31) ? null : reader.GetString(31),
+                            PlanType = reader.IsDBNull(32) ? null : reader.GetString(32),
+                            IsForcedPlan = reader.GetBoolean(33),
+                            ForceFailureCount = reader.IsDBNull(34) ? null : reader.GetInt64(34),
+                            LastForceFailureReasonDesc = reader.IsDBNull(35) ? null : reader.GetString(35),
+                            PlanForcingType = reader.IsDBNull(36) ? null : reader.GetString(36),
+                            CompatibilityLevel = reader.IsDBNull(37) ? null : reader.GetInt16(37)
                         });
                     }
 
@@ -1737,7 +1741,9 @@ namespace PerformanceMonitorDashboard.Services
             ps.total_logical_reads_delta,
             ps.total_physical_reads_delta,
             ps.total_logical_writes_delta,
-            ps.sample_interval_seconds
+            ps.sample_interval_seconds,
+            sql_handle = CONVERT(varchar(130), ps.sql_handle, 1),
+            plan_handle = CONVERT(varchar(130), ps.plan_handle, 1)
         FROM collect.procedure_stats AS ps
         WHERE ps.database_name = @database_name
         AND   ps.object_id = @object_id
@@ -1798,7 +1804,9 @@ namespace PerformanceMonitorDashboard.Services
                             TotalLogicalReadsDelta = reader.IsDBNull(29) ? null : reader.GetInt64(29),
                             TotalPhysicalReadsDelta = reader.IsDBNull(30) ? null : reader.GetInt64(30),
                             TotalLogicalWritesDelta = reader.IsDBNull(31) ? null : reader.GetInt64(31),
-                            SampleIntervalSeconds = reader.IsDBNull(32) ? null : reader.GetInt32(32)
+                            SampleIntervalSeconds = reader.IsDBNull(32) ? null : reader.GetInt32(32),
+                            SqlHandle = reader.IsDBNull(33) ? null : reader.GetString(33),
+                            PlanHandle = reader.IsDBNull(34) ? null : reader.GetString(34)
                         });
                     }
 
@@ -1852,7 +1860,9 @@ namespace PerformanceMonitorDashboard.Services
             ps.total_logical_reads_delta,
             ps.total_physical_reads_delta,
             ps.total_logical_writes_delta,
-            ps.sample_interval_seconds
+            ps.sample_interval_seconds,
+            sql_handle = CONVERT(varchar(130), ps.sql_handle, 1),
+            plan_handle = CONVERT(varchar(130), ps.plan_handle, 1)
         FROM collect.procedure_stats AS ps
         WHERE ps.database_name = @database_name
         AND   ps.schema_name = @schema_name
@@ -1915,7 +1925,9 @@ namespace PerformanceMonitorDashboard.Services
                             TotalLogicalReadsDelta = reader.IsDBNull(29) ? null : reader.GetInt64(29),
                             TotalPhysicalReadsDelta = reader.IsDBNull(30) ? null : reader.GetInt64(30),
                             TotalLogicalWritesDelta = reader.IsDBNull(31) ? null : reader.GetInt64(31),
-                            SampleIntervalSeconds = reader.IsDBNull(32) ? null : reader.GetInt32(32)
+                            SampleIntervalSeconds = reader.IsDBNull(32) ? null : reader.GetInt32(32),
+                            SqlHandle = reader.IsDBNull(33) ? null : reader.GetString(33),
+                            PlanHandle = reader.IsDBNull(34) ? null : reader.GetString(34)
                         });
                     }
 
@@ -1980,7 +1992,11 @@ namespace PerformanceMonitorDashboard.Services
             total_logical_reads_delta = SUM(qs.total_logical_reads_delta),
             total_physical_reads_delta = SUM(qs.total_physical_reads_delta),
             total_logical_writes_delta = SUM(qs.total_logical_writes_delta),
-            sample_interval_seconds = MAX(qs.sample_interval_seconds)
+            sample_interval_seconds = MAX(qs.sample_interval_seconds),
+            sql_handle = CONVERT(varchar(130), MAX(qs.sql_handle), 1),
+            plan_handle = CONVERT(varchar(130), MAX(qs.plan_handle), 1),
+            query_hash = CONVERT(varchar(20), MAX(qs.query_hash), 1),
+            query_plan_hash = CONVERT(varchar(20), MAX(qs.query_plan_hash), 1)
         FROM collect.query_stats AS qs
         WHERE qs.database_name = @database_name
         AND   qs.query_hash = CONVERT(binary(8), @query_hash, 1)
@@ -2054,7 +2070,11 @@ namespace PerformanceMonitorDashboard.Services
                             TotalLogicalReadsDelta = reader.IsDBNull(40) ? null : reader.GetInt64(40),
                             TotalPhysicalReadsDelta = reader.IsDBNull(41) ? null : reader.GetInt64(41),
                             TotalLogicalWritesDelta = reader.IsDBNull(42) ? null : reader.GetInt64(42),
-                            SampleIntervalSeconds = reader.IsDBNull(43) ? null : reader.GetInt32(43)
+                            SampleIntervalSeconds = reader.IsDBNull(43) ? null : reader.GetInt32(43),
+                            SqlHandle = reader.IsDBNull(44) ? null : reader.GetString(44),
+                            PlanHandle = reader.IsDBNull(45) ? null : reader.GetString(45),
+                            QueryHash = reader.IsDBNull(46) ? null : reader.GetString(46),
+                            QueryPlanHash = reader.IsDBNull(47) ? null : reader.GetString(47)
                         });
                     }
 

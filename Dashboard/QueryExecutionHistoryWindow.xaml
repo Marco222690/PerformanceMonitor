@@ -389,6 +389,24 @@
                     </DataGridTextColumn.Header>
                 </DataGridTextColumn>
 
+                <!-- Query Identifiers -->
+                <DataGridTextColumn Binding="{Binding QueryHash}" Width="160">
+                    <DataGridTextColumn.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <Button Style="{DynamicResource ColumnFilterButtonStyle}" Tag="QueryHash" Click="Filter_Click" Margin="0,0,4,0"/>
+                            <TextBlock Text="Query Hash" FontWeight="Bold" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </DataGridTextColumn.Header>
+                </DataGridTextColumn>
+                <DataGridTextColumn Binding="{Binding QueryPlanHash}" Width="160">
+                    <DataGridTextColumn.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <Button Style="{DynamicResource ColumnFilterButtonStyle}" Tag="QueryPlanHash" Click="Filter_Click" Margin="0,0,4,0"/>
+                            <TextBlock Text="Query Plan Hash" FontWeight="Bold" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </DataGridTextColumn.Header>
+                </DataGridTextColumn>
+
                 <!-- Download Plan Button -->
                 <DataGridTemplateColumn Header="Query Plan" Width="Auto" MinWidth="90">
                     <DataGridTemplateColumn.CellTemplate>

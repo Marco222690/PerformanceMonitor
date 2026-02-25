@@ -1115,16 +1115,21 @@ public partial class PlanViewerControl : UserControl
         Grid.SetColumn(labelBlock, 0);
         grid.Children.Add(labelBlock);
 
-        var valueBlock = new TextBlock
+        var valueBox = new TextBox
         {
             Text = value,
             FontSize = 11,
             Foreground = TooltipFgBrush,
-            TextWrapping = TextWrapping.Wrap
+            TextWrapping = TextWrapping.Wrap,
+            IsReadOnly = true,
+            BorderThickness = new Thickness(0),
+            Background = Brushes.Transparent,
+            Padding = new Thickness(0),
+            VerticalAlignment = VerticalAlignment.Top
         };
-        if (isCode) valueBlock.FontFamily = new FontFamily("Consolas");
-        Grid.SetColumn(valueBlock, 1);
-        grid.Children.Add(valueBlock);
+        if (isCode) valueBox.FontFamily = new FontFamily("Consolas");
+        Grid.SetColumn(valueBox, 1);
+        grid.Children.Add(valueBox);
 
         var target = _currentPropertySection ?? PropertiesContent;
         target.Children.Add(grid);

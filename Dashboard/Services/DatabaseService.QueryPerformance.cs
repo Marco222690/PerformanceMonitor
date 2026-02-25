@@ -1469,6 +1469,119 @@ namespace PerformanceMonitorDashboard.Services
                     return items;
                 }
 
+                public async Task<List<TracePatternDetailItem>> GetTracePatternHistoryAsync(string databaseName, string queryPattern, int hoursBack = 24, DateTime? fromDate = null, DateTime? toDate = null)
+                {
+                    var items = new List<TracePatternDetailItem>();
+
+                    await using var tc = await OpenThrottledConnectionAsync();
+                    var connection = tc.Connection;
+
+                    string timeFilter = fromDate.HasValue && toDate.HasValue
+                        ? "ta.end_time >= @from_date AND ta.end_time <= @to_date"
+                        : "ta.end_time >= DATEADD(HOUR, @hours_back, SYSDATETIME())";
+
+                    /* Trace events can appear in multiple collection cycles because the trace file
+                       retains events until it rolls over. Deduplicate by partitioning on the event's
+                       natural key (end_time + duration + cpu + reads) and keeping only the first row. */
+                    string query = $@"
+        SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+
+        WITH
+            numbered AS
+        (
+            SELECT
+                ta.analysis_id,
+                ta.collection_time,
+                ta.event_name,
+                ta.database_name,
+                ta.login_name,
+                ta.application_name,
+                ta.host_name,
+                ta.spid,
+                ta.duration_ms,
+                ta.cpu_ms,
+                ta.reads,
+                ta.writes,
+                ta.row_counts,
+                ta.start_time,
+                ta.end_time,
+                sql_text = LEFT(ta.sql_text, 4000),
+                ta.object_id,
+                rn = ROW_NUMBER() OVER
+                (
+                    PARTITION BY
+                        ta.end_time,
+                        ta.duration_ms,
+                        ta.cpu_ms,
+                        ta.reads,
+                        ta.spid
+                    ORDER BY
+                        ta.collection_time
+                )
+            FROM collect.trace_analysis AS ta
+            WHERE ta.database_name = @database_name
+            AND   LEFT(ta.sql_text, 200) = @query_pattern
+            AND   {timeFilter}
+        )
+        SELECT
+            analysis_id,
+            collection_time,
+            event_name,
+            database_name,
+            login_name,
+            application_name,
+            host_name,
+            spid,
+            duration_ms,
+            cpu_ms,
+            reads,
+            writes,
+            row_counts,
+            start_time,
+            end_time,
+            sql_text,
+            object_id
+        FROM numbered
+        WHERE rn = 1
+        ORDER BY
+            end_time DESC;";
+
+                    using var command = new SqlCommand(query, connection);
+                    command.CommandTimeout = 120;
+                    command.Parameters.Add(new SqlParameter("@database_name", SqlDbType.NVarChar, 128) { Value = databaseName });
+                    command.Parameters.Add(new SqlParameter("@query_pattern", SqlDbType.NVarChar, 200) { Value = queryPattern });
+                    command.Parameters.Add(new SqlParameter("@hours_back", SqlDbType.Int) { Value = -hoursBack });
+                    if (fromDate.HasValue) command.Parameters.Add(new SqlParameter("@from_date", SqlDbType.DateTime2) { Value = fromDate.Value });
+                    if (toDate.HasValue) command.Parameters.Add(new SqlParameter("@to_date", SqlDbType.DateTime2) { Value = toDate.Value });
+
+                    using var reader = await command.ExecuteReaderAsync();
+                    while (await reader.ReadAsync())
+                    {
+                        items.Add(new TracePatternDetailItem
+                        {
+                            AnalysisId = reader.GetInt64(0),
+                            CollectionTime = reader.GetDateTime(1),
+                            EventName = reader.IsDBNull(2) ? string.Empty : reader.GetString(2),
+                            DatabaseName = reader.IsDBNull(3) ? null : reader.GetString(3),
+                            LoginName = reader.IsDBNull(4) ? null : reader.GetString(4),
+                            ApplicationName = reader.IsDBNull(5) ? null : reader.GetString(5),
+                            HostName = reader.IsDBNull(6) ? null : reader.GetString(6),
+                            Spid = reader.IsDBNull(7) ? null : reader.GetInt32(7),
+                            DurationMs = reader.IsDBNull(8) ? null : reader.GetInt64(8),
+                            CpuMs = reader.IsDBNull(9) ? null : reader.GetInt64(9),
+                            Reads = reader.IsDBNull(10) ? null : reader.GetInt64(10),
+                            Writes = reader.IsDBNull(11) ? null : reader.GetInt64(11),
+                            RowCounts = reader.IsDBNull(12) ? null : reader.GetInt64(12),
+                            StartTime = reader.IsDBNull(13) ? null : reader.GetDateTime(13),
+                            EndTime = reader.IsDBNull(14) ? null : reader.GetDateTime(14),
+                            SqlText = reader.IsDBNull(15) ? null : reader.GetString(15),
+                            ObjectId = reader.IsDBNull(16) ? null : reader.GetInt64(16)
+                        });
+                    }
+
+                    return items;
+                }
+
                 public async Task<List<BlockingDeadlockStatsItem>> GetBlockingDeadlockStatsAsync(int hoursBack = 24, DateTime? fromDate = null, DateTime? toDate = null)
                 {
                     var items = new List<BlockingDeadlockStatsItem>();

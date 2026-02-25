@@ -554,7 +554,7 @@
                     <TabItem Header="Blocking">
                         <Grid>
                         <DataGrid x:Name="BlockingEventsDataGrid" AutoGenerateColumns="False" IsReadOnly="True"
-                                      RowHeight="28" GridLinesVisibility="Horizontal" CanUserResizeColumns="True"
+                                      GridLinesVisibility="Horizontal" CanUserResizeColumns="True"
                                       RowStyle="{StaticResource DefaultRowStyle}"
                                       ScrollViewer.CanContentScroll="True" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto">
                                 <DataGrid.Columns>
@@ -670,14 +670,19 @@
                                             </StackPanel>
                                         </DataGridTextColumn.Header>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Binding="{Binding QueryText}" Width="300">
-                                        <DataGridTextColumn.Header>
+                                    <DataGridTemplateColumn Width="300">
+                                        <DataGridTemplateColumn.Header>
                                             <StackPanel Orientation="Horizontal">
                                                 <Button Style="{DynamicResource ColumnFilterButtonStyle}" Tag="QueryText" Click="BlockingEventsFilter_Click" Margin="0,0,4,0"/>
                                                 <TextBlock Text="Query Text" FontWeight="Bold" VerticalAlignment="Center"/>
                                             </StackPanel>
-                                        </DataGridTextColumn.Header>
-                                    </DataGridTextColumn>
+                                        </DataGridTemplateColumn.Header>
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding QueryText}" TextWrapping="Wrap" MaxHeight="90" Margin="5,2" ToolTip="{Binding QueryText}"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
                                     <DataGridTextColumn Binding="{Binding TransactionName}" Width="100">
                                         <DataGridTextColumn.Header>
                                             <StackPanel Orientation="Horizontal">

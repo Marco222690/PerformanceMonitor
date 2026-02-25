@@ -1499,6 +1499,37 @@ namespace PerformanceMonitorDashboard.Controls
             LongRunningQueryPatternsDataGrid.ItemsSource = filteredData;
         }
 
+        private void LongRunningQueryPatternsDataGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (!TabHelpers.IsDoubleClickOnRow((DependencyObject)e.OriginalSource)) return;
+            if (_databaseService == null) return;
+
+            if (LongRunningQueryPatternsDataGrid.SelectedItem is LongRunningQueryPatternItem item)
+            {
+                if (string.IsNullOrEmpty(item.DatabaseName) || string.IsNullOrEmpty(item.QueryPattern))
+                {
+                    MessageBox.Show(
+                        "Unable to show history: missing database name or query pattern.",
+                        "Information",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information
+                    );
+                    return;
+                }
+
+                var historyWindow = new TracePatternHistoryWindow(
+                    _databaseService,
+                    item.DatabaseName,
+                    item.QueryPattern,
+                    _lrqPatternsHoursBack,
+                    _lrqPatternsFromDate,
+                    _lrqPatternsToDate
+                );
+                historyWindow.Owner = Window.GetWindow(this);
+                historyWindow.ShowDialog();
+            }
+        }
+
         #endregion
 
         #region Performance Trends

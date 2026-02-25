@@ -68,7 +68,7 @@ public class DuckDbInitializer
     /// <summary>
     /// Current schema version. Increment this when schema changes require table rebuilds.
     /// </summary>
-    internal const int CurrentSchemaVersion = 13;
+    internal const int CurrentSchemaVersion = 14;
 
     private readonly string _archivePath;
 
@@ -451,6 +451,17 @@ public class DuckDbInitializer
             await ExecuteNonQueryAsync(connection, "DROP TABLE IF EXISTS query_stats");
             await ExecuteNonQueryAsync(connection, "DROP TABLE IF EXISTS procedure_stats");
             await ExecuteNonQueryAsync(connection, "DROP TABLE IF EXISTS query_store_stats");
+        }
+
+        if (fromVersion < 14)
+        {
+            /* v14: Switched memory_grant_stats from per-session (dm_exec_query_memory_grants)
+                    to semaphore-level (dm_exec_query_resource_semaphores) for parity with Dashboard.
+                    Old schema had session_id, query_text, dop, etc. New schema has
+                    resource_semaphore_id, pool_id, and delta columns.
+                    Must drop/recreate because column layout is completely different. */
+            _logger?.LogInformation("Running migration to v14: rebuilding memory_grant_stats for resource semaphore schema");
+            await ExecuteNonQueryAsync(connection, "DROP TABLE IF EXISTS memory_grant_stats");
         }
     }
 

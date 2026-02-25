@@ -681,6 +681,7 @@ BEGIN
     (
         collection_id bigint IDENTITY NOT NULL,
         collection_time datetime2(7) NOT NULL DEFAULT SYSDATETIME(),
+        server_start_time datetime2(7) NOT NULL,
         resource_semaphore_id smallint NOT NULL,
         pool_id integer NOT NULL,
         target_memory_mb decimal(19,2) NULL,
@@ -693,16 +694,15 @@ BEGIN
         waiter_count integer NULL,
         timeout_error_count bigint NULL,
         forced_grant_count bigint NULL,
-        /*Pressure warnings*/
-        available_memory_pressure_warning bit NULL,
-        waiter_count_warning bit NULL,
-        timeout_error_warning bit NULL,
-        forced_grant_warning bit NULL,
-        CONSTRAINT 
-        PK_memory_grant_stats 
-        PRIMARY KEY CLUSTERED 
-            (collection_time, collection_id) 
-        WITH 
+        /*Delta columns calculated by framework*/
+        timeout_error_count_delta bigint NULL,
+        forced_grant_count_delta bigint NULL,
+        sample_interval_seconds integer NULL,
+        CONSTRAINT
+        PK_memory_grant_stats
+        PRIMARY KEY CLUSTERED
+            (collection_time, collection_id)
+        WITH
             (DATA_COMPRESSION = PAGE)
     );
 

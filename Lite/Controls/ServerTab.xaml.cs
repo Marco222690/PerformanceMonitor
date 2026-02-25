@@ -58,6 +58,8 @@ public partial class ServerTab : UserControl
     private Helpers.ChartHoverHelper? _blockingTrendHover;
     private Helpers.ChartHoverHelper? _deadlockTrendHover;
     private Helpers.ChartHoverHelper? _memoryClerksHover;
+    private Helpers.ChartHoverHelper? _memoryGrantSizingHover;
+    private Helpers.ChartHoverHelper? _memoryGrantActivityHover;
 
     /* Memory clerks picker */
     private List<SelectableItem> _memoryClerkItems = new();
@@ -170,6 +172,8 @@ public partial class ServerTab : UserControl
         _blockingTrendHover = new Helpers.ChartHoverHelper(BlockingTrendChart, "incidents");
         _deadlockTrendHover = new Helpers.ChartHoverHelper(DeadlockTrendChart, "deadlocks");
         _memoryClerksHover = new Helpers.ChartHoverHelper(MemoryClerksChart, "MB");
+        _memoryGrantSizingHover = new Helpers.ChartHoverHelper(MemoryGrantSizingChart, "MB");
+        _memoryGrantActivityHover = new Helpers.ChartHoverHelper(MemoryGrantActivityChart, "");
 
         /* Initial load is triggered by MainWindow.ConnectToServer calling RefreshData()
            after collectors finish - no Loaded handler needed */
@@ -480,6 +484,7 @@ public partial class ServerTab : UserControl
             var perfmonCountersTask = _dataService.GetDistinctPerfmonCountersAsync(_serverId, hoursBack, fromDate, toDate);
             var queryStoreTask = _dataService.GetQueryStoreTopQueriesAsync(_serverId, hoursBack, 50, fromDate, toDate);
             var memoryGrantTrendTask = _dataService.GetMemoryGrantTrendAsync(_serverId, hoursBack, fromDate, toDate);
+            var memoryGrantChartTask = _dataService.GetMemoryGrantChartDataAsync(_serverId, hoursBack, fromDate, toDate);
             var serverConfigTask = SafeQueryAsync(() => _dataService.GetLatestServerConfigAsync(_serverId));
             var databaseConfigTask = SafeQueryAsync(() => _dataService.GetLatestDatabaseConfigAsync(_serverId));
             var databaseScopedConfigTask = SafeQueryAsync(() => _dataService.GetLatestDatabaseScopedConfigAsync(_serverId));
@@ -493,7 +498,7 @@ public partial class ServerTab : UserControl
                 snapshotsTask, cpuTask, memoryTask, memoryTrendTask,
                 queryStatsTask, procStatsTask, fileIoTask, fileIoTrendTask, tempDbTask, tempDbFileIoTask,
                 deadlockTask, blockedProcessTask, waitTypesTask, memoryClerkTypesTask, perfmonCountersTask,
-                queryStoreTask, memoryGrantTrendTask,
+                queryStoreTask, memoryGrantTrendTask, memoryGrantChartTask,
                 serverConfigTask, databaseConfigTask, databaseScopedConfigTask, traceFlagsTask,
                 runningJobsTask, collectionHealthTask, collectionLogTask, dailySummaryTask);
 
@@ -562,6 +567,7 @@ public partial class ServerTab : UserControl
             UpdateProcDurationTrendChart(procDurationTrendTask.Result);
             UpdateQueryStoreDurationTrendChart(queryStoreDurationTrendTask.Result);
             UpdateExecutionCountTrendChart(executionCountTrendTask.Result);
+            UpdateMemoryGrantCharts(memoryGrantChartTask.Result);
 
             /* Populate pickers (preserve selections) */
             PopulateWaitTypePicker(waitTypesTask.Result);
@@ -726,6 +732,96 @@ public partial class ServerTab : UserControl
 
         ShowChartLegend(MemoryChart);
         MemoryChart.Refresh();
+    }
+
+    private void UpdateMemoryGrantCharts(List<MemoryGrantChartPoint> data)
+    {
+        ClearChart(MemoryGrantSizingChart);
+        ClearChart(MemoryGrantActivityChart);
+        _memoryGrantSizingHover?.Clear();
+        _memoryGrantActivityHover?.Clear();
+        ApplyDarkTheme(MemoryGrantSizingChart);
+        ApplyDarkTheme(MemoryGrantActivityChart);
+
+        if (data.Count == 0)
+        {
+            MemoryGrantSizingChart.Refresh();
+            MemoryGrantActivityChart.Refresh();
+            return;
+        }
+
+        var poolIds = data.Select(d => d.PoolId).Distinct().OrderBy(p => p).ToList();
+        int colorIndex = 0;
+
+        /* Chart 1: Memory Grant Sizing — Available, Granted, Used MB per pool */
+        double sizingMax = 0;
+        var sizingMetrics = new (string Name, Func<MemoryGrantChartPoint, double> Selector)[]
+        {
+            ("Available MB", d => d.AvailableMemoryMb),
+            ("Granted MB", d => d.GrantedMemoryMb),
+            ("Used MB", d => d.UsedMemoryMb)
+        };
+
+        foreach (var poolId in poolIds)
+        {
+            var poolData = data.Where(d => d.PoolId == poolId).OrderBy(d => d.CollectionTime).ToList();
+            var times = poolData.Select(d => d.CollectionTime.AddMinutes(UtcOffsetMinutes).ToOADate()).ToArray();
+
+            foreach (var metric in sizingMetrics)
+            {
+                var values = poolData.Select(d => metric.Selector(d)).ToArray();
+                var plot = MemoryGrantSizingChart.Plot.Add.Scatter(times, values);
+                var label = $"Pool {poolId}: {metric.Name}";
+                plot.LegendText = label;
+                plot.Color = ScottPlot.Color.FromHex(SeriesColors[colorIndex % SeriesColors.Length]);
+                _memoryGrantSizingHover?.Add(plot, label);
+                if (values.Length > 0) sizingMax = Math.Max(sizingMax, values.Max());
+                colorIndex++;
+            }
+        }
+
+        MemoryGrantSizingChart.Plot.Axes.DateTimeTicksBottom();
+        ReapplyAxisColors(MemoryGrantSizingChart);
+        MemoryGrantSizingChart.Plot.YLabel("Memory (MB)");
+        SetChartYLimitsWithLegendPadding(MemoryGrantSizingChart, 0, sizingMax > 0 ? sizingMax : 100);
+        ShowChartLegend(MemoryGrantSizingChart);
+        MemoryGrantSizingChart.Refresh();
+
+        /* Chart 2: Memory Grant Activity — Grantees, Waiters, Timeouts, Forced per pool */
+        double activityMax = 0;
+        colorIndex = 0;
+        var activityMetrics = new (string Name, Func<MemoryGrantChartPoint, double> Selector)[]
+        {
+            ("Grantees", d => d.GranteeCount),
+            ("Waiters", d => d.WaiterCount),
+            ("Timeouts", d => d.TimeoutErrorCountDelta),
+            ("Forced Grants", d => d.ForcedGrantCountDelta)
+        };
+
+        foreach (var poolId in poolIds)
+        {
+            var poolData = data.Where(d => d.PoolId == poolId).OrderBy(d => d.CollectionTime).ToList();
+            var times = poolData.Select(d => d.CollectionTime.AddMinutes(UtcOffsetMinutes).ToOADate()).ToArray();
+
+            foreach (var metric in activityMetrics)
+            {
+                var values = poolData.Select(d => metric.Selector(d)).ToArray();
+                var plot = MemoryGrantActivityChart.Plot.Add.Scatter(times, values);
+                var label = $"Pool {poolId}: {metric.Name}";
+                plot.LegendText = label;
+                plot.Color = ScottPlot.Color.FromHex(SeriesColors[colorIndex % SeriesColors.Length]);
+                _memoryGrantActivityHover?.Add(plot, label);
+                if (values.Length > 0) activityMax = Math.Max(activityMax, values.Max());
+                colorIndex++;
+            }
+        }
+
+        MemoryGrantActivityChart.Plot.Axes.DateTimeTicksBottom();
+        ReapplyAxisColors(MemoryGrantActivityChart);
+        MemoryGrantActivityChart.Plot.YLabel("Count");
+        SetChartYLimitsWithLegendPadding(MemoryGrantActivityChart, 0, activityMax > 0 ? activityMax : 10);
+        ShowChartLegend(MemoryGrantActivityChart);
+        MemoryGrantActivityChart.Refresh();
     }
 
     private void UpdateTempDbChart(List<TempDbRow> data)

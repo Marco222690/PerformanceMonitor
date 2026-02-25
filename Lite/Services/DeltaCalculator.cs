@@ -49,6 +49,7 @@ public class DeltaCalculator
             await SeedWaitStatsAsync(connection);
             await SeedFileIoStatsAsync(connection);
             await SeedPerfmonStatsAsync(connection);
+            await SeedMemoryGrantStatsAsync(connection);
 
             _logger?.LogInformation("Delta calculator seeded from database");
         }
@@ -155,6 +156,37 @@ WHERE (server_id, collection_time) IN (
             count++;
         }
         if (count > 0) _logger?.LogDebug("Seeded {Count} perfmon_stats baseline rows", count);
+    }
+
+    private async Task SeedMemoryGrantStatsAsync(DuckDBConnection connection)
+    {
+        try
+        {
+            using var cmd = connection.CreateCommand();
+            cmd.CommandText = @"
+SELECT server_id, pool_id, resource_semaphore_id, timeout_error_count, forced_grant_count
+FROM memory_grant_stats
+WHERE (server_id, collection_time) IN (
+    SELECT server_id, MAX(collection_time) FROM memory_grant_stats GROUP BY server_id
+)";
+            using var reader = await cmd.ExecuteReaderAsync();
+            var count = 0;
+            while (await reader.ReadAsync())
+            {
+                var serverId = reader.GetInt32(0);
+                var poolId = reader.IsDBNull(1) ? 0 : reader.GetInt32(1);
+                var semaphoreId = reader.IsDBNull(2) ? (short)0 : reader.GetInt16(2);
+                var deltaKey = $"{poolId}_{semaphoreId}";
+                Seed(serverId, "memory_grants_timeouts", deltaKey, reader.IsDBNull(3) ? 0 : reader.GetInt64(3));
+                Seed(serverId, "memory_grants_forced", deltaKey, reader.IsDBNull(4) ? 0 : reader.GetInt64(4));
+                count++;
+            }
+            if (count > 0) _logger?.LogDebug("Seeded {Count} memory_grant_stats baseline rows", count);
+        }
+        catch
+        {
+            /* Table may not exist on first run after schema migration */
+        }
     }
 
 }

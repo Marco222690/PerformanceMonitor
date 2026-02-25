@@ -380,19 +380,20 @@ CREATE TABLE IF NOT EXISTS memory_grant_stats (
     collection_time TIMESTAMP NOT NULL,
     server_id INTEGER NOT NULL,
     server_name VARCHAR NOT NULL,
-    session_id INTEGER,
-    database_name VARCHAR,
-    query_text VARCHAR,
-    requested_memory_mb DECIMAL(18,2),
+    resource_semaphore_id SMALLINT,
+    pool_id INTEGER,
+    target_memory_mb DECIMAL(18,2),
+    max_target_memory_mb DECIMAL(18,2),
+    total_memory_mb DECIMAL(18,2),
+    available_memory_mb DECIMAL(18,2),
     granted_memory_mb DECIMAL(18,2),
     used_memory_mb DECIMAL(18,2),
-    max_used_memory_mb DECIMAL(18,2),
-    ideal_memory_mb DECIMAL(18,2),
-    required_memory_mb DECIMAL(18,2),
-    wait_time_ms BIGINT,
-    is_small_grant BOOLEAN,
-    dop INTEGER,
-    query_cost DECIMAL(18,2)
+    grantee_count INTEGER,
+    waiter_count INTEGER,
+    timeout_error_count BIGINT,
+    forced_grant_count BIGINT,
+    timeout_error_count_delta BIGINT,
+    forced_grant_count_delta BIGINT
 )";
 
     public const string CreateWaitingTasksTable = @"

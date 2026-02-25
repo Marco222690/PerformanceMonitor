@@ -411,6 +411,7 @@ SELECT
     SUM(total_spills) AS total_spills,
     MIN(min_spills) AS min_spills,
     MAX(max_spills) AS max_spills,
+    MAX(cached_time) AS cached_time,
     MAX(sql_handle) AS sql_handle,
     MAX(plan_handle) AS plan_handle
 FROM v_procedure_stats
@@ -458,8 +459,9 @@ LIMIT $4";
                 TotalSpills = reader.IsDBNull(20) ? 0 : reader.GetInt64(20),
                 MinSpills = reader.IsDBNull(21) ? 0 : reader.GetInt64(21),
                 MaxSpills = reader.IsDBNull(22) ? 0 : reader.GetInt64(22),
-                SqlHandle = reader.IsDBNull(23) ? "" : reader.GetString(23),
-                PlanHandle = reader.IsDBNull(24) ? "" : reader.GetString(24)
+                CachedTime = reader.IsDBNull(23) ? (DateTime?)null : reader.GetDateTime(23),
+                SqlHandle = reader.IsDBNull(24) ? "" : reader.GetString(24),
+                PlanHandle = reader.IsDBNull(25) ? "" : reader.GetString(25)
             });
         }
 
@@ -685,6 +687,7 @@ public class ProcedureStatsRow
     public long TotalSpills { get; set; }
     public long MinSpills { get; set; }
     public long MaxSpills { get; set; }
+    public DateTime? CachedTime { get; set; }
     public string SqlHandle { get; set; } = "";
     public string PlanHandle { get; set; } = "";
     public string FullName => string.IsNullOrEmpty(SchemaName) ? ObjectName : $"{SchemaName}.{ObjectName}";
@@ -697,6 +700,7 @@ public class ProcedureStatsRow
     public double MaxCpuMs => MaxWorkerTimeUs / 1000.0;
     public double MinElapsedMs => MinElapsedTimeUs / 1000.0;
     public double MaxElapsedMs => MaxElapsedTimeUs / 1000.0;
+    public string CachedTimeFormatted => CachedTime?.ToString("yyyy-MM-dd HH:mm:ss") ?? "";
 }
 
 public class QueryStatsHistoryRow

@@ -79,6 +79,8 @@ namespace PerformanceMonitorDashboard
         private Helpers.ChartHoverHelper? _deadlocksHover;
         private Helpers.ChartHoverHelper? _deadlockWaitTimeHover;
         private Helpers.ChartHoverHelper? _collectorDurationHover;
+        private Helpers.ChartHoverHelper? _currentWaitsDurationHover;
+        private Helpers.ChartHoverHelper? _currentWaitsBlockedHover;
 
         public ServerTab(ServerConnection serverConnection, int utcOffsetMinutes = 0)
         {
@@ -94,6 +96,8 @@ namespace PerformanceMonitorDashboard
             _deadlocksHover = new Helpers.ChartHoverHelper(BlockingStatsDeadlocksChart, "events");
             _deadlockWaitTimeHover = new Helpers.ChartHoverHelper(BlockingStatsDeadlockWaitTimeChart, "ms");
             _collectorDurationHover = new Helpers.ChartHoverHelper(CollectorDurationChart, "ms");
+            _currentWaitsDurationHover = new Helpers.ChartHoverHelper(CurrentWaitsDurationChart, "ms");
+            _currentWaitsBlockedHover = new Helpers.ChartHoverHelper(CurrentWaitsBlockedChart, "sessions");
 
             _serverConnection = serverConnection;
             UtcOffsetMinutes = utcOffsetMinutes;
@@ -453,17 +457,21 @@ namespace PerformanceMonitorDashboard
         private void SetupChartContextMenus()
         {
             // Resource Overview charts
-            SetupChartSaveMenu(ResourceOverviewCpuChart, "CPU_Utilization", "collect.cpu_utilization_stats");
-            SetupChartSaveMenu(ResourceOverviewMemoryChart, "Memory_Utilization", "collect.memory_stats");
-            SetupChartSaveMenu(ResourceOverviewIoChart, "IO_Latency", "collect.file_io_stats");
-            SetupChartSaveMenu(ResourceOverviewWaitChart, "Wait_Stats", "collect.wait_stats");
+            Helpers.TabHelpers.SetupChartContextMenu(ResourceOverviewCpuChart, "CPU_Utilization", "collect.cpu_utilization_stats");
+            Helpers.TabHelpers.SetupChartContextMenu(ResourceOverviewMemoryChart, "Memory_Utilization", "collect.memory_stats");
+            Helpers.TabHelpers.SetupChartContextMenu(ResourceOverviewIoChart, "IO_Latency", "collect.file_io_stats");
+            Helpers.TabHelpers.SetupChartContextMenu(ResourceOverviewWaitChart, "Wait_Stats", "collect.wait_stats");
 
             // Blocking Stats charts
-            SetupChartSaveMenu(LockWaitStatsChart, "Lock_Wait_Stats", "collect.wait_stats");
-            SetupChartSaveMenu(BlockingStatsBlockingEventsChart, "Blocking_Events", "collect.blocking_deadlock_stats");
-            SetupChartSaveMenu(BlockingStatsDurationChart, "Blocking_Duration", "collect.blocking_deadlock_stats");
-            SetupChartSaveMenu(BlockingStatsDeadlocksChart, "Deadlocks", "collect.blocking_deadlock_stats");
-            SetupChartSaveMenu(BlockingStatsDeadlockWaitTimeChart, "Deadlock_Wait_Time", "collect.blocking_deadlock_stats");
+            Helpers.TabHelpers.SetupChartContextMenu(LockWaitStatsChart, "Lock_Wait_Stats", "collect.wait_stats");
+            Helpers.TabHelpers.SetupChartContextMenu(BlockingStatsBlockingEventsChart, "Blocking_Events", "collect.blocking_deadlock_stats");
+            Helpers.TabHelpers.SetupChartContextMenu(BlockingStatsDurationChart, "Blocking_Duration", "collect.blocking_deadlock_stats");
+            Helpers.TabHelpers.SetupChartContextMenu(BlockingStatsDeadlocksChart, "Deadlocks", "collect.blocking_deadlock_stats");
+            Helpers.TabHelpers.SetupChartContextMenu(BlockingStatsDeadlockWaitTimeChart, "Deadlock_Wait_Time", "collect.blocking_deadlock_stats");
+
+            // Current Waits charts
+            Helpers.TabHelpers.SetupChartContextMenu(CurrentWaitsDurationChart, "Current_Waits_Duration", "collect.waiting_tasks");
+            Helpers.TabHelpers.SetupChartContextMenu(CurrentWaitsBlockedChart, "Current_Waits_Blocked", "collect.waiting_tasks");
 
             // Query Performance Trends charts now handled by QueryPerformanceContent UserControl
 
@@ -471,279 +479,6 @@ namespace PerformanceMonitorDashboard
 
             // System Health charts now handled by SystemEventsContent UserControl
             // Memory Analysis charts now handled by MemoryContent UserControl
-        }
-
-        private void SetupChartSaveMenu(WpfPlot chart, string chartName, string? dataSource = null)
-        {
-            // Create native WPF context menu (simpler - no zoom items since double-click handles reset)
-            var contextMenu = new ContextMenu();
-
-            var copyItem = new MenuItem { Header = "Copy Image", Icon = new TextBlock { Text = "📋" } };
-            copyItem.Click += (s, e) =>
-            {
-                var tempFile = Path.Combine(Path.GetTempPath(), $"chart_copy_{Guid.NewGuid()}.png");
-                try
-                {
-                    chart.Plot.SavePng(tempFile, (int)chart.ActualWidth, (int)chart.ActualHeight);
-                    var bitmap = new System.Windows.Media.Imaging.BitmapImage();
-                    bitmap.BeginInit();
-                    bitmap.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
-                    bitmap.UriSource = new Uri(tempFile);
-                    bitmap.EndInit();
-                    bitmap.Freeze();
-                    /* Use SetDataObject with copy=false to avoid WPF's problematic Clipboard.Flush() */
-                    Clipboard.SetDataObject(new System.Windows.DataObject(System.Windows.DataFormats.Bitmap, bitmap), false);
-                }
-                finally
-                {
-                    if (File.Exists(tempFile)) File.Delete(tempFile);
-                }
-            };
-            contextMenu.Items.Add(copyItem);
-
-            var saveItem = new MenuItem { Header = "Save Image As...", Icon = new TextBlock { Text = "💾" } };
-            saveItem.Click += (s, e) =>
-            {
-                var timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss", CultureInfo.InvariantCulture);
-                var defaultFileName = $"{chartName}_{timestamp}.png";
-                var saveDialog = new SaveFileDialog
-                {
-                    Filter = "PNG Image|*.png|JPEG Image|*.jpg|BMP Image|*.bmp",
-                    FileName = defaultFileName,
-                    DefaultExt = ".png"
-                };
-                if (saveDialog.ShowDialog() == true)
-                {
-                    chart.Plot.SavePng(saveDialog.FileName, (int)chart.ActualWidth, (int)chart.ActualHeight);
-                }
-            };
-            contextMenu.Items.Add(saveItem);
-
-            var openWindowItem = new MenuItem { Header = "Open in New Window", Icon = new TextBlock { Text = "🗗" } };
-            openWindowItem.Click += (s, e) =>
-            {
-                var newWindow = new Window
-                {
-                    Title = chartName.Replace("_", " ", StringComparison.Ordinal),
-                    Width = 800,
-                    Height = 600
-                };
-                var tempFile = Path.Combine(Path.GetTempPath(), $"chart_temp_{Guid.NewGuid()}.png");
-                try
-                {
-                    chart.Plot.SavePng(tempFile, 800, 600);
-                    var image = new System.Windows.Controls.Image();
-                    var bitmap = new System.Windows.Media.Imaging.BitmapImage();
-                    bitmap.BeginInit();
-                    bitmap.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
-                    bitmap.UriSource = new Uri(tempFile);
-                    bitmap.EndInit();
-                    bitmap.Freeze();
-                    image.Source = bitmap;
-                    newWindow.Content = image;
-                }
-                finally
-                {
-                    if (File.Exists(tempFile)) File.Delete(tempFile);
-                }
-                newWindow.Show();
-            };
-            contextMenu.Items.Add(openWindowItem);
-
-            contextMenu.Items.Add(new Separator());
-
-            var autoscaleItem = new MenuItem { Header = "Revert (or double-click)", Icon = new TextBlock { Text = "↩" } };
-            autoscaleItem.Click += (s, e) =>
-            {
-                chart.Plot.Axes.AutoScale();
-                chart.Refresh();
-            };
-            contextMenu.Items.Add(autoscaleItem);
-
-            contextMenu.Items.Add(new Separator());
-
-            var exportCsvItem = new MenuItem { Header = "Export Data to CSV...", Icon = new TextBlock { Text = "📊" } };
-            exportCsvItem.Click += (s, e) =>
-            {
-                var timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss", CultureInfo.InvariantCulture);
-                var defaultFileName = $"{chartName}_data_{timestamp}.csv";
-                var saveDialog = new SaveFileDialog
-                {
-                    Filter = "CSV Files|*.csv|All Files|*.*",
-                    FileName = defaultFileName,
-                    DefaultExt = ".csv"
-                };
-                if (saveDialog.ShowDialog() == true)
-                {
-                    try
-                    {
-                        var sb = new StringBuilder();
-                        sb.AppendLine("DateTime,Series,Value");
-
-                        var plottables = chart.Plot.GetPlottables();
-                        int seriesIndex = 1;
-                        foreach (var plottable in plottables)
-                        {
-                            if (plottable is ScottPlot.Plottables.Scatter scatter)
-                            {
-                                var seriesName = scatter.LegendText ?? $"Series{seriesIndex}";
-                                var points = scatter.Data.GetScatterPoints();
-
-                                foreach (var point in points)
-                                {
-                                    var dateTime = DateTime.FromOADate(point.X);
-                                    sb.AppendLine(CultureInfo.InvariantCulture, $"{dateTime:yyyy-MM-dd HH:mm:ss},{TabHelpers.EscapeCsvField(seriesName)},{point.Y}");
-                                }
-                                seriesIndex++;
-                            }
-                        }
-
-                        File.WriteAllText(saveDialog.FileName, sb.ToString());
-                        MessageBox.Show($"Data exported to:\n{saveDialog.FileName}", "Export Complete", MessageBoxButton.OK, MessageBoxImage.Information);
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show($"Error exporting data:\n\n{ex.Message}", "Export Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                    }
-                }
-            };
-            contextMenu.Items.Add(exportCsvItem);
-
-            // Show Data Source (if provided)
-            if (!string.IsNullOrEmpty(dataSource))
-            {
-                contextMenu.Items.Add(new Separator());
-
-                var dataSourceItem = new MenuItem { Header = "Show Data Source", Icon = new TextBlock { Text = "ℹ" } };
-                dataSourceItem.Click += (s, e) =>
-                {
-                    MessageBox.Show(
-                        $"Data Source:\n\n{dataSource}",
-                        "Chart Data Source",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Information);
-                };
-                contextMenu.Items.Add(dataSourceItem);
-            }
-
-            // Disable ScottPlot's default right-click context menu handling
-            chart.UserInputProcessor.UserActionResponses.RemoveAll(r =>
-                r.GetType().Name.Contains("Context", StringComparison.Ordinal) ||
-                r.GetType().Name.Contains("RightClick", StringComparison.Ordinal) ||
-                r.GetType().Name.Contains("Menu", StringComparison.Ordinal));
-
-            // Use PreviewMouseRightButtonDown to show context menu before ScottPlot handles it
-            chart.PreviewMouseRightButtonDown += (s, e) =>
-            {
-                e.Handled = true; // Prevent ScottPlot from handling
-                contextMenu.PlacementTarget = chart;
-                contextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint;
-                contextMenu.IsOpen = true;
-            };
-
-            // Disable ALL of ScottPlot's default double-click behaviors
-            chart.UserInputProcessor.UserActionResponses.RemoveAll(r =>
-                r.GetType().Name.Contains("DoubleClick", StringComparison.Ordinal));
-
-            // Use PreviewMouseDoubleClick to intercept before ScottPlot
-            chart.PreviewMouseDoubleClick += (s, e) =>
-            {
-                e.Handled = true;
-                _isAutoScaling = true;
-
-                Dispatcher.BeginInvoke(new Action(async () =>
-                {
-                    try
-                    {
-                        if (_isZoomed)
-                        {
-                            await ResetToOriginalRange();
-                        }
-                        else
-                        {
-                            chart.Plot.Axes.AutoScale();
-                            chart.Refresh();
-                        }
-                    }
-                    finally
-                    {
-                        await Task.Delay(200);
-                        _isAutoScaling = false;
-                    }
-                }), System.Windows.Threading.DispatcherPriority.Background);
-            };
-
-            // Add AxisLimitsChanged handler for auto-zoom-out detection
-            chart.Plot.RenderManager.AxisLimitsChanged += (s, e) =>
-            {
-                if (_isApplyingZoom || _isAutoScaling) return; // Avoid recursion
-
-                // Debounce - reset timer on each change
-                _lastZoomedChart = chart;
-
-                if (_chartZoomDebounceTimer == null)
-                {
-                    _chartZoomDebounceTimer = new DispatcherTimer
-                    {
-                        Interval = TimeSpan.FromMilliseconds(800)
-                    };
-                    _chartZoomDebounceTimer.Tick += ChartZoomDebounce_Tick;
-                }
-
-                _chartZoomDebounceTimer.Stop();
-                _chartZoomDebounceTimer.Start();
-            };
-        }
-
-        private async void ChartZoomDebounce_Tick(object? sender, EventArgs e)
-        {
-            _chartZoomDebounceTimer?.Stop();
-
-            if (_lastZoomedChart == null || _isApplyingZoom) return;
-
-            try
-            {
-                var limits = _lastZoomedChart.Plot.Axes.GetLimits();
-                var fromDate = DateTime.FromOADate(limits.Left);
-                var toDate = DateTime.FromOADate(limits.Right);
-
-                // Validate dates
-                if (fromDate >= toDate || fromDate.Year < 2000 || toDate.Year > 2100)
-                    return;
-
-                // Get current data range
-                DateTime currentFrom, currentTo;
-                if (_globalFromDate.HasValue && _globalToDate.HasValue)
-                {
-                    currentFrom = _globalFromDate.Value;
-                    currentTo = _globalToDate.Value;
-                }
-                else
-                {
-                    currentTo = Helpers.ServerTimeHelper.ServerNow;
-                    currentFrom = currentTo.AddHours(-_globalHoursBack);
-                }
-
-                // Check if zoomed significantly beyond current data range (more than 10% wider)
-                var currentSpan = (currentTo - currentFrom).TotalMinutes;
-                var newSpan = (toDate - fromDate).TotalMinutes;
-
-                bool zoomedOut = fromDate < currentFrom.AddMinutes(-currentSpan * 0.1) ||
-                                 toDate > currentTo.AddMinutes(currentSpan * 0.1);
-
-                if (zoomedOut && newSpan > currentSpan * 1.1)
-                {
-                    // Auto-apply the zoomed-out range to fetch more data
-                    _isApplyingZoom = true;
-                    await ZoomToTimeRange(fromDate, toDate);
-                    _isApplyingZoom = false;
-                }
-            }
-            catch (Exception ex)
-            {
-                // Log but don't show error for zoom operations - they're non-critical
-                Logger.Warning($"Chart zoom error: {ex.Message}");
-            }
         }
 
         private async void ServerTab_Loaded(object sender, RoutedEventArgs e)
@@ -809,12 +544,6 @@ namespace PerformanceMonitorDashboard
         private DateTime? _originalFromDate = null;
         private DateTime? _originalToDate = null;
         private bool _isZoomed = false;
-
-        // Debounce timer for auto-applying chart zoom
-        private DispatcherTimer? _chartZoomDebounceTimer;
-        private WpfPlot? _lastZoomedChart;
-        private bool _isApplyingZoom = false;
-        private bool _isAutoScaling = false;
 
         private async void GlobalTimeRange_Click(object sender, RoutedEventArgs e)
         {
@@ -1332,6 +1061,8 @@ namespace PerformanceMonitorDashboard
                 var deadlocksTask = _databaseService.GetDeadlocksAsync();
                 var blockingStatsTask = _databaseService.GetBlockingDeadlockStatsAsync(_blockingStatsHoursBack, _blockingStatsFromDate, _blockingStatsToDate);
                 var lockWaitStatsTask = _databaseService.GetLockWaitStatsAsync(_blockingStatsHoursBack, _blockingStatsFromDate, _blockingStatsToDate);
+                var currentWaitsDurationTask = _databaseService.GetWaitingTaskTrendAsync(_blockingStatsHoursBack, _blockingStatsFromDate, _blockingStatsToDate);
+                var currentWaitsBlockedTask = _databaseService.GetBlockedSessionTrendAsync(_blockingStatsHoursBack, _blockingStatsFromDate, _blockingStatsToDate);
 
                 var performanceTask = PerformanceTab.RefreshAllDataAsync();
                 var memoryTask = MemoryTab.RefreshAllDataAsync();
@@ -1347,7 +1078,7 @@ namespace PerformanceMonitorDashboard
 
                 // Wait for everything to complete before _isRefreshing resets
                 await Task.WhenAll(
-                    healthTask, durationLogsTask, blockingEventsTask, deadlocksTask, blockingStatsTask, lockWaitStatsTask,
+                    healthTask, durationLogsTask, blockingEventsTask, deadlocksTask, blockingStatsTask, lockWaitStatsTask, currentWaitsDurationTask, currentWaitsBlockedTask,
                     performanceTask, memoryTask, resourceOverviewTask, runningJobsTask,
                     resourceMetricsTask, dailySummaryTask, criticalIssuesTask, defaultTraceTask, currentConfigTask, configChangesTask, systemEventsTask);
 
@@ -1390,6 +1121,10 @@ namespace PerformanceMonitorDashboard
                     var lockWaitStats = await lockWaitStatsTask;
                     LoadBlockingStatsCharts(blockingStats, _blockingStatsHoursBack, _blockingStatsFromDate, _blockingStatsToDate);
                     LoadLockWaitStatsChart(lockWaitStats, _blockingStatsHoursBack, _blockingStatsFromDate, _blockingStatsToDate);
+                    var currentWaitsDuration = await currentWaitsDurationTask;
+                    var currentWaitsBlocked = await currentWaitsBlockedTask;
+                    LoadCurrentWaitsDurationChart(currentWaitsDuration, _blockingStatsHoursBack, _blockingStatsFromDate, _blockingStatsToDate);
+                    LoadCurrentWaitsBlockedChart(currentWaitsBlocked, _blockingStatsHoursBack, _blockingStatsFromDate, _blockingStatsToDate);
                 }
                 catch (Exception blockingStatsEx)
                 {
@@ -1671,7 +1406,9 @@ namespace PerformanceMonitorDashboard
 
                 var blockingStatsTask = _databaseService.GetBlockingDeadlockStatsAsync(_blockingStatsHoursBack, _blockingStatsFromDate, _blockingStatsToDate);
                 var lockWaitStatsTask = _databaseService.GetLockWaitStatsAsync(_blockingStatsHoursBack, _blockingStatsFromDate, _blockingStatsToDate);
-                await Task.WhenAll(blockingStatsTask, lockWaitStatsTask);
+                var currentWaitsDurationTask = _databaseService.GetWaitingTaskTrendAsync(_blockingStatsHoursBack, _blockingStatsFromDate, _blockingStatsToDate);
+                var currentWaitsBlockedTask = _databaseService.GetBlockedSessionTrendAsync(_blockingStatsHoursBack, _blockingStatsFromDate, _blockingStatsToDate);
+                await Task.WhenAll(blockingStatsTask, lockWaitStatsTask, currentWaitsDurationTask, currentWaitsBlockedTask);
 
                 var data = await blockingStatsTask;
                 var lockWaitStats = await lockWaitStatsTask;
@@ -1679,6 +1416,8 @@ namespace PerformanceMonitorDashboard
                 // Load charts with explicit time range for proper axis scaling
                 LoadBlockingStatsCharts(data, _blockingStatsHoursBack, _blockingStatsFromDate, _blockingStatsToDate);
                 LoadLockWaitStatsChart(lockWaitStats, _blockingStatsHoursBack, _blockingStatsFromDate, _blockingStatsToDate);
+                LoadCurrentWaitsDurationChart(await currentWaitsDurationTask, _blockingStatsHoursBack, _blockingStatsFromDate, _blockingStatsToDate);
+                LoadCurrentWaitsBlockedChart(await currentWaitsBlockedTask, _blockingStatsHoursBack, _blockingStatsFromDate, _blockingStatsToDate);
                 StatusText.Text = $"Loaded {data.Count} blocking/deadlock stats records";
             }
             catch (Exception ex)
@@ -1933,6 +1672,120 @@ namespace PerformanceMonitorDashboard
             LockWaitStatsChart.Plot.Legend.FontSize = 12;
             LockChartVerticalAxis(LockWaitStatsChart);
             LockWaitStatsChart.Refresh();
+        }
+
+        private void LoadCurrentWaitsDurationChart(List<WaitingTaskTrendItem> data, int hoursBack, DateTime? fromDate, DateTime? toDate)
+        {
+            DateTime rangeEnd = toDate ?? Helpers.ServerTimeHelper.ServerNow;
+            DateTime rangeStart = fromDate ?? rangeEnd.AddHours(-hoursBack);
+            double xMin = rangeStart.ToOADate();
+            double xMax = rangeEnd.ToOADate();
+
+            if (_legendPanels.TryGetValue(CurrentWaitsDurationChart, out var existingPanel) && existingPanel != null)
+            {
+                CurrentWaitsDurationChart.Plot.Axes.Remove(existingPanel);
+                _legendPanels[CurrentWaitsDurationChart] = null;
+            }
+            CurrentWaitsDurationChart.Plot.Clear();
+            _currentWaitsDurationHover?.Clear();
+            ApplyDarkModeToChart(CurrentWaitsDurationChart);
+
+            var waitTypes = data.Select(d => d.WaitType).Distinct().OrderBy(w => w).ToList();
+            var colors = TabHelpers.ChartColors;
+
+            int colorIndex = 0;
+            foreach (var waitType in waitTypes)
+            {
+                var waitTypeData = data.Where(d => d.WaitType == waitType).OrderBy(d => d.CollectionTime).ToList();
+                if (waitTypeData.Count > 0)
+                {
+                    var (xs, ys) = TabHelpers.FillTimeSeriesGaps(
+                        waitTypeData.Select(d => d.CollectionTime),
+                        waitTypeData.Select(d => (double)d.TotalWaitMs));
+
+                    var scatter = CurrentWaitsDurationChart.Plot.Add.Scatter(xs, ys);
+                    scatter.LineWidth = 2;
+                    scatter.MarkerSize = 5;
+                    scatter.Color = colors[colorIndex % colors.Length];
+                    scatter.LegendText = waitType;
+                    _currentWaitsDurationHover?.Add(scatter, waitType);
+                    colorIndex++;
+                }
+            }
+
+            if (data.Count == 0)
+            {
+                double xCenter = xMin + (xMax - xMin) / 2;
+                var noDataText = CurrentWaitsDurationChart.Plot.Add.Text("No data for selected time range", xCenter, 0.5);
+                noDataText.LabelFontSize = 14;
+                noDataText.LabelFontColor = ScottPlot.Colors.Gray;
+                noDataText.LabelAlignment = ScottPlot.Alignment.MiddleCenter;
+            }
+
+            CurrentWaitsDurationChart.Plot.Axes.DateTimeTicksBottom();
+            CurrentWaitsDurationChart.Plot.Axes.SetLimitsX(xMin, xMax);
+            CurrentWaitsDurationChart.Plot.YLabel("Total Wait Duration (ms)");
+            _legendPanels[CurrentWaitsDurationChart] = CurrentWaitsDurationChart.Plot.ShowLegend(ScottPlot.Edge.Bottom);
+            CurrentWaitsDurationChart.Plot.Legend.FontSize = 12;
+            LockChartVerticalAxis(CurrentWaitsDurationChart);
+            CurrentWaitsDurationChart.Refresh();
+        }
+
+        private void LoadCurrentWaitsBlockedChart(List<BlockedSessionTrendItem> data, int hoursBack, DateTime? fromDate, DateTime? toDate)
+        {
+            DateTime rangeEnd = toDate ?? Helpers.ServerTimeHelper.ServerNow;
+            DateTime rangeStart = fromDate ?? rangeEnd.AddHours(-hoursBack);
+            double xMin = rangeStart.ToOADate();
+            double xMax = rangeEnd.ToOADate();
+
+            if (_legendPanels.TryGetValue(CurrentWaitsBlockedChart, out var existingPanel) && existingPanel != null)
+            {
+                CurrentWaitsBlockedChart.Plot.Axes.Remove(existingPanel);
+                _legendPanels[CurrentWaitsBlockedChart] = null;
+            }
+            CurrentWaitsBlockedChart.Plot.Clear();
+            _currentWaitsBlockedHover?.Clear();
+            ApplyDarkModeToChart(CurrentWaitsBlockedChart);
+
+            var databases = data.Select(d => d.DatabaseName).Distinct().OrderBy(d => d).ToList();
+            var colors = TabHelpers.ChartColors;
+
+            int colorIndex = 0;
+            foreach (var db in databases)
+            {
+                var dbData = data.Where(d => d.DatabaseName == db).OrderBy(d => d.CollectionTime).ToList();
+                if (dbData.Count > 0)
+                {
+                    var (xs, ys) = TabHelpers.FillTimeSeriesGaps(
+                        dbData.Select(d => d.CollectionTime),
+                        dbData.Select(d => (double)d.BlockedCount));
+
+                    var scatter = CurrentWaitsBlockedChart.Plot.Add.Scatter(xs, ys);
+                    scatter.LineWidth = 2;
+                    scatter.MarkerSize = 5;
+                    scatter.Color = colors[colorIndex % colors.Length];
+                    scatter.LegendText = db;
+                    _currentWaitsBlockedHover?.Add(scatter, db);
+                    colorIndex++;
+                }
+            }
+
+            if (data.Count == 0)
+            {
+                double xCenter = xMin + (xMax - xMin) / 2;
+                var noDataText = CurrentWaitsBlockedChart.Plot.Add.Text("No data for selected time range", xCenter, 0.5);
+                noDataText.LabelFontSize = 14;
+                noDataText.LabelFontColor = ScottPlot.Colors.Gray;
+                noDataText.LabelAlignment = ScottPlot.Alignment.MiddleCenter;
+            }
+
+            CurrentWaitsBlockedChart.Plot.Axes.DateTimeTicksBottom();
+            CurrentWaitsBlockedChart.Plot.Axes.SetLimitsX(xMin, xMax);
+            CurrentWaitsBlockedChart.Plot.YLabel("Blocked Sessions");
+            _legendPanels[CurrentWaitsBlockedChart] = CurrentWaitsBlockedChart.Plot.ShowLegend(ScottPlot.Edge.Bottom);
+            CurrentWaitsBlockedChart.Plot.Legend.FontSize = 12;
+            LockChartVerticalAxis(CurrentWaitsBlockedChart);
+            CurrentWaitsBlockedChart.Refresh();
         }
 
         // ====================================================================

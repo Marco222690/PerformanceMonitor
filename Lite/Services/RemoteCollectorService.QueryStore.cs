@@ -26,20 +26,69 @@ public partial class RemoteCollectorService
     /// </summary>
     private async Task<int> CollectQueryStoreAsync(ServerConnection server, CancellationToken cancellationToken)
     {
-        /* First, get databases with Query Store enabled */
+        /* First, get databases with Query Store actually enabled.
+           Uses sys.database_query_store_options.actual_state instead of
+           sys.databases.is_query_store_on, which can be out of sync on Azure SQL DB. */
         const string dbQuery = @"
+SET NOCOUNT ON;
 SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 
-SELECT /* PerformanceMonitorLite */
-    d.name
-FROM sys.databases AS d
-WHERE d.is_query_store_on = 1
-AND   d.database_id > 4
-AND   d.database_id < 32761
-AND   d.state_desc = N'ONLINE'
-AND   d.name <> N'PerformanceMonitor'
-ORDER BY d.name
-OPTION(RECOMPILE);";
+DECLARE
+    @result TABLE (name sysname);
+
+DECLARE
+    @db sysname,
+    @sql NVARCHAR(500);
+
+DECLARE db_check CURSOR LOCAL FAST_FORWARD FOR
+    SELECT /* PerformanceMonitorLite */
+        d.name
+    FROM sys.databases AS d
+    WHERE d.database_id > 4
+    AND   d.database_id < 32761
+    AND   d.state_desc = N'ONLINE'
+    AND   d.name <> N'PerformanceMonitor'
+    OPTION(RECOMPILE);
+
+OPEN db_check;
+
+FETCH NEXT
+FROM db_check
+INTO @db;
+
+WHILE @@FETCH_STATUS = 0
+BEGIN
+    BEGIN TRY
+        SET @sql =
+            N'USE ' + QUOTENAME(@db) + N';
+            SELECT ' + QUOTENAME(@db, '''') + N'
+            WHERE EXISTS
+            (
+                SELECT
+                    1
+                FROM sys.database_query_store_options
+                WHERE actual_state > 0
+            );';
+
+        INSERT @result (name)
+        EXEC(@sql);
+    END TRY
+    BEGIN CATCH
+    END CATCH;
+
+    FETCH NEXT
+    FROM db_check
+    INTO @db;
+END;
+
+CLOSE db_check;
+DEALLOCATE db_check;
+
+SELECT
+    name
+FROM @result
+ORDER BY
+    name;";
 
         var serverId = GetServerId(server);
         var collectionTime = DateTime.UtcNow;

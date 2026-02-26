@@ -198,6 +198,7 @@ public partial class AddServerDialog : Window
         {
             TestButton.IsEnabled = true;
             SaveButton.IsEnabled = true;
+            StatusText.Text = string.Empty;
         }
 
         return (connected, errorMessage, mfaCancelled, serverVersion);

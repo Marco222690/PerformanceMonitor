@@ -215,9 +215,10 @@ public partial class AddServerDialog : Window
 
         if (connected)
         {
-            StatusText.Text = serverVersion != null
-                ? $"Success: {serverVersion}"
+            var message = serverVersion != null
+                ? $"Successfully connected to {ServerNameBox.Text.Trim()}!\n\n{serverVersion}"
                 : $"Successfully connected to {ServerNameBox.Text.Trim()}!";
+            MessageBox.Show(message, "Connection Successful", MessageBoxButton.OK, MessageBoxImage.Information);
 
             if (AddedServer != null && EntraMfaAuthRadio.IsChecked == true)
             {
@@ -232,11 +233,22 @@ public partial class AddServerDialog : Window
                 var status = _serverManager.GetConnectionStatus(AddedServer.Id);
                 status.UserCancelledMfa = true;
             }
-            StatusText.Text = "Authentication cancelled by user. Click Test to try again.";
+            MessageBox.Show(
+                "Authentication was cancelled. Click Test to try again.",
+                "Authentication Cancelled",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning
+            );
         }
         else
         {
-            StatusText.Text = $"Failed: {errorMessage}";
+            var detail = errorMessage != null ? $"\n\nError: {errorMessage}" : string.Empty;
+            MessageBox.Show(
+                $"Could not connect to {ServerNameBox.Text.Trim()}.{detail}",
+                "Connection Failed",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error
+            );
         }
     }
 

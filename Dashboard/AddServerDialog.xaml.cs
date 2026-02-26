@@ -77,6 +77,48 @@ namespace PerformanceMonitorDashboard
             }
         }
 
+        private string GetSelectedEncryptMode()
+        {
+            return EncryptModeComboBox.SelectedIndex switch
+            {
+                1 => "Mandatory",
+                2 => "Strict",
+                _ => "Optional"
+            };
+        }
+
+        private static SqlConnectionEncryptOption ParseEncryptOption(string mode)
+        {
+            return mode switch
+            {
+                "Mandatory" => SqlConnectionEncryptOption.Mandatory,
+                "Strict" => SqlConnectionEncryptOption.Strict,
+                _ => SqlConnectionEncryptOption.Optional
+            };
+        }
+
+        private SqlConnectionStringBuilder BuildConnectionBuilder()
+        {
+            var builder = new SqlConnectionStringBuilder
+            {
+                DataSource = ServerNameTextBox.Text.Trim(),
+                InitialCatalog = "PerformanceMonitor",
+                ApplicationName = "PerformanceMonitorDashboard",
+                ConnectTimeout = 10,
+                TrustServerCertificate = TrustServerCertificateCheckBox.IsChecked == true,
+                Encrypt = ParseEncryptOption(GetSelectedEncryptMode()),
+                IntegratedSecurity = WindowsAuthRadio.IsChecked == true
+            };
+
+            if (WindowsAuthRadio.IsChecked != true)
+            {
+                builder.UserID = UsernameTextBox.Text.Trim();
+                builder.Password = PasswordBox.Password;
+            }
+
+            return builder;
+        }
+
         private bool ValidateInputs()
         {
             if (string.IsNullOrWhiteSpace(ServerNameTextBox.Text))
@@ -116,29 +158,7 @@ namespace PerformanceMonitorDashboard
             string? serverVersion = null;
             try
             {
-                var builder = new SqlConnectionStringBuilder
-                {
-                    DataSource = ServerNameTextBox.Text.Trim(),
-                    InitialCatalog = "PerformanceMonitor",
-                    ApplicationName = "PerformanceMonitorDashboard",
-                    ConnectTimeout = 10,
-                    TrustServerCertificate = TrustServerCertificateCheckBox.IsChecked == true,
-                    Encrypt = GetSelectedEncryptMode() switch
-                    {
-                        "Strict" => SqlConnectionEncryptOption.Strict,
-                        "Optional" => SqlConnectionEncryptOption.Optional,
-                        _ => SqlConnectionEncryptOption.Mandatory
-                    },
-                    IntegratedSecurity = WindowsAuthRadio.IsChecked == true
-                };
-
-                if (WindowsAuthRadio.IsChecked != true)
-                {
-                    builder.UserID = UsernameTextBox.Text.Trim();
-                    builder.Password = PasswordBox.Password;
-                }
-
-                await using var connection = new SqlConnection(builder.ConnectionString);
+                await using var connection = new SqlConnection(BuildConnectionBuilder().ConnectionString);
                 await connection.OpenAsync();
                 using var cmd = new SqlCommand("SELECT @@VERSION", connection);
                 var version = await cmd.ExecuteScalarAsync() as string;
@@ -259,14 +279,5 @@ namespace PerformanceMonitorDashboard
             Close();
         }
 
-        private string GetSelectedEncryptMode()
-        {
-            return EncryptModeComboBox.SelectedIndex switch
-            {
-                1 => "Mandatory",
-                2 => "Strict",
-                _ => "Optional"
-            };
-        }
     }
 }

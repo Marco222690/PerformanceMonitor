@@ -141,11 +141,13 @@ public class DuckDbInitializer
 
             var existingVersion = await GetSchemaVersionAsync(connection);
 
-            if (existingVersion < CurrentSchemaVersion)
+            /* On a fresh/reset database (v0), skip migrations entirely — they DROP tables
+               expecting CREATE TABLE to follow, which is destructive on a blank DB.
+               Just create tables with the current schema and stamp the version. */
+            if (existingVersion > 0 && existingVersion < CurrentSchemaVersion)
             {
                 _logger?.LogInformation("Schema upgrade needed: v{Old} -> v{New}", existingVersion, CurrentSchemaVersion);
                 await RunMigrationsAsync(connection, existingVersion);
-                await SetSchemaVersionAsync(connection, CurrentSchemaVersion);
             }
 
             foreach (var tableStatement in Schema.GetAllTableStatements())
@@ -156,6 +158,11 @@ public class DuckDbInitializer
             foreach (var indexStatement in Schema.GetAllIndexStatements())
             {
                 await ExecuteNonQueryAsync(connection, indexStatement);
+            }
+
+            if (existingVersion < CurrentSchemaVersion)
+            {
+                await SetSchemaVersionAsync(connection, CurrentSchemaVersion);
             }
 
             _logger?.LogInformation("Database initialization complete. Schema version: {Version}", CurrentSchemaVersion);

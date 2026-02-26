@@ -10,6 +10,7 @@ using System;
 using System.Windows;
 using System.Windows.Controls;
 using Microsoft.Data.SqlClient;
+using PerformanceMonitorDashboard.Helpers;
 using PerformanceMonitorDashboard.Models;
 using PerformanceMonitorDashboard.Services;
 
@@ -51,11 +52,18 @@ namespace PerformanceMonitorDashboard
             };
             TrustServerCertificateCheckBox.IsChecked = existingServer.TrustServerCertificate;
 
-            if (existingServer.UseWindowsAuth)
+            if (existingServer.AuthenticationType == AuthenticationTypes.EntraMFA)
             {
-                WindowsAuthRadio.IsChecked = true;
+                EntraMfaAuthRadio.IsChecked = true;
+
+                var credentialService = new CredentialService();
+                var cred = credentialService.GetCredential(existingServer.Id);
+                if (cred.HasValue && !string.IsNullOrEmpty(cred.Value.Username))
+                {
+                    EntraMfaUsernameBox.Text = cred.Value.Username;
+                }
             }
-            else
+            else if (existingServer.AuthenticationType == AuthenticationTypes.SqlServer)
             {
                 SqlAuthRadio.IsChecked = true;
 
@@ -67,13 +75,23 @@ namespace PerformanceMonitorDashboard
                     PasswordBox.Password = cred.Value.Password;
                 }
             }
+            else
+            {
+                WindowsAuthRadio.IsChecked = true;
+            }
         }
 
         private void AuthType_Changed(object sender, RoutedEventArgs e)
         {
-            if (SqlAuthPanel != null)
+            if (SqlAuthPanel != null && EntraMfaPanel != null)
             {
-                SqlAuthPanel.IsEnabled = SqlAuthRadio.IsChecked == true;
+                SqlAuthPanel.Visibility = SqlAuthRadio.IsChecked == true
+                    ? System.Windows.Visibility.Visible
+                    : System.Windows.Visibility.Collapsed;
+
+                EntraMfaPanel.Visibility = EntraMfaAuthRadio.IsChecked == true
+                    ? System.Windows.Visibility.Visible
+                    : System.Windows.Visibility.Collapsed;
             }
         }
 
@@ -106,14 +124,26 @@ namespace PerformanceMonitorDashboard
                 ApplicationName = "PerformanceMonitorDashboard",
                 ConnectTimeout = 10,
                 TrustServerCertificate = TrustServerCertificateCheckBox.IsChecked == true,
-                Encrypt = ParseEncryptOption(GetSelectedEncryptMode()),
-                IntegratedSecurity = WindowsAuthRadio.IsChecked == true
+                Encrypt = ParseEncryptOption(GetSelectedEncryptMode())
             };
 
-            if (WindowsAuthRadio.IsChecked != true)
+            if (WindowsAuthRadio.IsChecked == true)
             {
+                builder.IntegratedSecurity = true;
+            }
+            else if (SqlAuthRadio.IsChecked == true)
+            {
+                builder.IntegratedSecurity = false;
                 builder.UserID = UsernameTextBox.Text.Trim();
                 builder.Password = PasswordBox.Password;
+            }
+            else if (EntraMfaAuthRadio.IsChecked == true)
+            {
+                builder.IntegratedSecurity = false;
+                builder.Authentication = SqlAuthenticationMethod.ActiveDirectoryInteractive;
+                var mfaUsername = EntraMfaUsernameBox.Text.Trim();
+                if (!string.IsNullOrEmpty(mfaUsername))
+                    builder.UserID = mfaUsername;
             }
 
             return builder;
@@ -146,15 +176,19 @@ namespace PerformanceMonitorDashboard
             return true;
         }
 
-        private async System.Threading.Tasks.Task<(bool Connected, string? ErrorMessage, string? ServerVersion)> RunConnectionTestAsync(Button triggerButton)
+        private async System.Threading.Tasks.Task<(bool Connected, string? ErrorMessage, bool MfaCancelled, string? ServerVersion)> RunConnectionTestAsync(Button triggerButton)
         {
             triggerButton.IsEnabled = false;
             SaveButton.IsEnabled = false;
-            StatusText.Text = "Testing connection...";
+
+            StatusText.Text = EntraMfaAuthRadio.IsChecked == true
+                ? "Testing connection — please complete authentication in the popup window..."
+                : "Testing connection...";
             StatusText.Visibility = System.Windows.Visibility.Visible;
 
             bool connected = false;
             string? errorMessage = null;
+            bool mfaCancelled = false;
             string? serverVersion = null;
             try
             {
@@ -169,6 +203,8 @@ namespace PerformanceMonitorDashboard
             {
                 connected = false;
                 errorMessage = ex.Message;
+                if (EntraMfaAuthRadio.IsChecked == true && MfaAuthenticationHelper.IsMfaCancelledException(ex))
+                    mfaCancelled = true;
             }
             finally
             {
@@ -178,14 +214,14 @@ namespace PerformanceMonitorDashboard
                 StatusText.Visibility = System.Windows.Visibility.Collapsed;
             }
 
-            return (connected, errorMessage, serverVersion);
+            return (connected, errorMessage, mfaCancelled, serverVersion);
         }
 
         private async void TestConnection_Click(object sender, RoutedEventArgs e)
         {
             if (!ValidateInputs()) return;
 
-            var (connected, errorMessage, serverVersion) = await RunConnectionTestAsync(TestConnectionButton);
+            var (connected, errorMessage, mfaCancelled, serverVersion) = await RunConnectionTestAsync(TestConnectionButton);
 
             if (connected)
             {
@@ -199,12 +235,26 @@ namespace PerformanceMonitorDashboard
                     MessageBoxImage.Information
                 );
             }
+            else if (mfaCancelled)
+            {
+                MessageBox.Show(
+                    "Authentication was cancelled. Click Test to try again.",
+                    "Authentication Cancelled",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning
+                );
+            }
             else
             {
                 var detail = errorMessage != null ? $"\n\nError: {errorMessage}" : string.Empty;
                 MessageBox.Show(
-                    $"Could not connect to {ServerNameTextBox.Text}.{detail}",
-                    "Connection Failed",
+                    $"Could not connect to {ServerNameTextBox.Text}.{detail}\n\nPlease check:\n" +
+                    "• Server name/address is correct\n" +
+                    "• Server is accessible from this machine\n" +
+                    "• Firewall allows SQL Server connections\n" +
+                    "• SQL Server service is running\n" +
+                    "• You have the 'PerformanceMonitor' database and access to it",
+                    "Connection Test Failed",
                     MessageBoxButton.OK,
                     MessageBoxImage.Error
                 );
@@ -215,10 +265,21 @@ namespace PerformanceMonitorDashboard
         {
             if (!ValidateInputs()) return;
 
-            var (connected, errorMessage, _) = await RunConnectionTestAsync(SaveButton);
+            var (connected, errorMessage, mfaCancelled, _) = await RunConnectionTestAsync(SaveButton);
 
             if (!connected)
             {
+                if (mfaCancelled)
+                {
+                    MessageBox.Show(
+                        "Authentication was cancelled. Click Save to try again, or Cancel to abort.",
+                        "Authentication Cancelled",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning
+                    );
+                    return;
+                }
+
                 var detail = errorMessage != null ? $"\n\nError: {errorMessage}" : string.Empty;
                 var result = MessageBox.Show(
                     $"Could not connect to {ServerNameTextBox.Text}.{detail}\n\n" +
@@ -232,6 +293,27 @@ namespace PerformanceMonitorDashboard
                     return;
             }
 
+            // Determine authentication type and credentials
+            string authenticationType;
+            if (WindowsAuthRadio.IsChecked == true)
+            {
+                authenticationType = AuthenticationTypes.Windows;
+                Username = null;
+                Password = null;
+            }
+            else if (EntraMfaAuthRadio.IsChecked == true)
+            {
+                authenticationType = AuthenticationTypes.EntraMFA;
+                Username = EntraMfaUsernameBox.Text.Trim();
+                Password = null;
+            }
+            else
+            {
+                authenticationType = AuthenticationTypes.SqlServer;
+                Username = UsernameTextBox.Text.Trim();
+                Password = PasswordBox.Password;
+            }
+
             // Use server name as display name if not provided
             var displayName = string.IsNullOrWhiteSpace(DisplayNameTextBox.Text)
                 ? ServerNameTextBox.Text.Trim()
@@ -241,7 +323,7 @@ namespace PerformanceMonitorDashboard
             {
                 ServerConnection.DisplayName = displayName;
                 ServerConnection.ServerName = ServerNameTextBox.Text.Trim();
-                ServerConnection.UseWindowsAuth = WindowsAuthRadio.IsChecked == true;
+                ServerConnection.AuthenticationType = authenticationType;
                 ServerConnection.Description = DescriptionTextBox.Text.Trim();
                 ServerConnection.IsFavorite = IsFavoriteCheckBox.IsChecked == true;
                 ServerConnection.EncryptMode = GetSelectedEncryptMode();
@@ -253,7 +335,7 @@ namespace PerformanceMonitorDashboard
                 {
                     DisplayName = displayName,
                     ServerName = ServerNameTextBox.Text.Trim(),
-                    UseWindowsAuth = WindowsAuthRadio.IsChecked == true,
+                    AuthenticationType = authenticationType,
                     Description = DescriptionTextBox.Text.Trim(),
                     IsFavorite = IsFavoriteCheckBox.IsChecked == true,
                     CreatedDate = DateTime.Now,
@@ -261,12 +343,6 @@ namespace PerformanceMonitorDashboard
                     EncryptMode = GetSelectedEncryptMode(),
                     TrustServerCertificate = TrustServerCertificateCheckBox.IsChecked == true
                 };
-            }
-
-            if (SqlAuthRadio.IsChecked == true)
-            {
-                Username = UsernameTextBox.Text.Trim();
-                Password = PasswordBox.Password;
             }
 
             DialogResult = true;

